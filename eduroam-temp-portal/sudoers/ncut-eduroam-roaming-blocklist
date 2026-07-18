@@ -1,2 +1,4 @@
-apache ALL=(root) NOPASSWD: /usr/bin/php /var/www/eduroam-portal/bin/sync-radius-roaming-blocklist.php
-nginx ALL=(root) NOPASSWD: /usr/bin/php /var/www/eduroam-portal/bin/sync-radius-roaming-blocklist.php
+Cmnd_Alias NCUT_EDUROAM_ROAMING_SYNC = /usr/bin/php /var/www/eduroam-portal/bin/sync-radius-roaming-blocklist.php
+Defaults!NCUT_EDUROAM_ROAMING_SYNC !pam_acct_mgmt, !pam_session
+apache ALL=(root) NOPASSWD: NCUT_EDUROAM_ROAMING_SYNC
+nginx ALL=(root) NOPASSWD: NCUT_EDUROAM_ROAMING_SYNC

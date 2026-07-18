@@ -1,0 +1,36 @@
+module ncut_eduroam_httpd_sudo 1.0;
+
+require {
+    type httpd_t;
+    type bin_t;
+    type radiusd_etc_t;
+    type radiusd_exec_t;
+    type radiusd_unit_file_t;
+    type systemd_systemctl_exec_t;
+    class capability { audit_write chown dac_override dac_read_search fowner sys_resource };
+    class dir { add_name getattr read remove_name search write };
+    class file { create execute execute_no_trans getattr lock map open read rename setattr unlink write };
+    class lnk_file { getattr read };
+    class netlink_audit_socket { create getattr nlmsg_read nlmsg_relay nlmsg_write read write };
+    class process setrlimit;
+    class service { reload start status stop };
+}
+
+# Allow the web PHP worker to initialize sudo's Linux audit channel before
+# sudo transitions the approved helper to its target SELinux type.
+allow httpd_t self:capability audit_write;
+allow httpd_t self:netlink_audit_socket { create getattr nlmsg_read nlmsg_relay nlmsg_write read write };
+
+# The sudo-approved helper still runs in httpd_t, but with root uid. Limit the
+# added file access to FreeRADIUS configuration objects the helper maintains.
+allow httpd_t self:capability { chown dac_override dac_read_search fowner sys_resource };
+allow httpd_t self:process setrlimit;
+allow httpd_t radiusd_etc_t:dir { add_name getattr read remove_name search write };
+allow httpd_t radiusd_etc_t:file { create getattr lock open read rename setattr unlink write };
+allow httpd_t radiusd_etc_t:lnk_file { getattr read };
+
+# The helper validates FreeRADIUS config and restarts radiusd after writing.
+allow httpd_t bin_t:file { execute execute_no_trans getattr map open read };
+allow httpd_t radiusd_exec_t:file { execute execute_no_trans getattr map open read };
+allow httpd_t radiusd_unit_file_t:service { reload start status stop };
+allow httpd_t systemd_systemctl_exec_t:file { execute execute_no_trans getattr map open read };
