@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CONFIG="/etc/raddb/ncut-ad.conf"
+if [[ ! -r "$CONFIG" ]]; then
+    echo "AD config is not readable" >&2
+    exit 1
+fi
+
+# shellcheck disable=SC1090
+source "$CONFIG"
+
+if [[ "${AD_ENABLED:-0}" != "1" ]]; then
+    echo "AD authentication is disabled" >&2
+    exit 1
+fi
+
+NTLM_AUTH="${AD_NTLM_AUTH_PATH:-/usr/bin/ntlm_auth}"
+if [[ ! -x "$NTLM_AUTH" ]]; then
+    echo "ntlm_auth is not executable: $NTLM_AUTH" >&2
+    exit 1
+fi
+
+domain="${AD_NETBIOS_DOMAIN:-${AD_DOMAIN:-}}"
+if [[ -z "$domain" ]]; then
+    echo "AD NetBIOS domain is empty" >&2
+    exit 1
+fi
+
+args=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --username=*)
+            username="${1#--username=}"
+            if [[ -n "${AD_UPN_SUFFIX:-}" ]]; then
+                username="${username%@${AD_UPN_SUFFIX}}"
+            fi
+            if [[ -n "${AD_DOMAIN:-}" ]]; then
+                username="${username%@${AD_DOMAIN}}"
+            fi
+            username="${username#*\\}"
+            args+=("--username=${username}")
+            shift
+            ;;
+        --username)
+            shift
+            username="${1:-}"
+            if [[ -n "${AD_UPN_SUFFIX:-}" ]]; then
+                username="${username%@${AD_UPN_SUFFIX}}"
+            fi
+            if [[ -n "${AD_DOMAIN:-}" ]]; then
+                username="${username%@${AD_DOMAIN}}"
+            fi
+            username="${username#*\\}"
+            args+=("--username=${username}")
+            shift
+            ;;
+        *)
+            args+=("$1")
+            shift
+            ;;
+    esac
+done
+
+exec "$NTLM_AUTH" --request-nt-key --allow-mschapv2 --domain="$domain" "${args[@]}"

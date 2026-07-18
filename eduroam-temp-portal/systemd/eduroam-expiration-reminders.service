@@ -1,0 +1,8 @@
+[Unit]
+Description=Send NCUT eduroam temporary account expiration reminders
+
+[Service]
+Type=oneshot
+User=apache
+Group=apache
+ExecStart=/usr/bin/php /var/www/eduroam-portal/bin/send-expiration-reminders.php

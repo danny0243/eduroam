@@ -1,0 +1,10 @@
+[Unit]
+Description=Run NCUT eduroam expiration reminders daily
+
+[Timer]
+OnCalendar=*-*-* 08:30:00
+AccuracySec=5min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

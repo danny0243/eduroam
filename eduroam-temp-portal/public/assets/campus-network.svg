@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="700" viewBox="0 0 1600 700" role="img" aria-label="campus network">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1b6fb8"/>
+      <stop offset=".55" stop-color="#264b63"/>
+      <stop offset="1" stop-color="#273241"/>
+    </linearGradient>
+    <pattern id="grid" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M80 0H0v80" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="1600" height="700" fill="url(#g)"/>
+  <rect width="1600" height="700" fill="url(#grid)"/>
+  <g fill="none" stroke="rgba(255,255,255,.46)" stroke-width="4">
+    <path d="M180 502C320 360 450 410 580 268s270-92 390-188 272-35 448 38"/>
+    <path d="M74 230c170 28 280 78 394 150s258 94 400 28 286-195 596-124"/>
+    <path d="M332 620c178-148 326-110 486-184s222-232 472-242"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="180" cy="502" r="10"/>
+    <circle cx="580" cy="268" r="10"/>
+    <circle cx="970" cy="80" r="10"/>
+    <circle cx="1418" cy="118" r="10"/>
+    <circle cx="468" cy="380" r="10"/>
+    <circle cx="868" cy="408" r="10"/>
+    <circle cx="1464" cy="284" r="10"/>
+    <circle cx="332" cy="620" r="10"/>
+    <circle cx="818" cy="436" r="10"/>
+    <circle cx="1290" cy="194" r="10"/>
+  </g>
+</svg>

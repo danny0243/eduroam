@@ -1,0 +1,8 @@
+[Unit]
+Description=Sync NCUT eduroam portal AD settings for FreeRADIUS
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+ExecStart=/usr/bin/php /var/www/eduroam-portal/bin/sync-radius-ad-settings.php

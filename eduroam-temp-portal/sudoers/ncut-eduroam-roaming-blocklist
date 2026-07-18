@@ -1,0 +1,2 @@
+apache ALL=(root) NOPASSWD: /usr/bin/php /var/www/eduroam-portal/bin/sync-radius-roaming-blocklist.php
+nginx ALL=(root) NOPASSWD: /usr/bin/php /var/www/eduroam-portal/bin/sync-radius-roaming-blocklist.php

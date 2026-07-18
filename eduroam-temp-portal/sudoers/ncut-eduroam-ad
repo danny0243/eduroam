@@ -1,0 +1,2 @@
+Defaults:apache !requiretty
+apache ALL=(root) NOPASSWD: /usr/bin/php /var/www/eduroam-portal/bin/apply-ad-domain-join.php

@@ -1,0 +1,1065 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NCUT eduroam 帳號管理工具</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #eef3f7;
+      --panel: #ffffff;
+      --panel-2: #f7fafc;
+      --ink: #17212b;
+      --muted: #647482;
+      --line: #d9e2ea;
+      --accent: #146c94;
+      --accent-2: #0f8f7f;
+      --warn: #a15c07;
+      --danger: #b42318;
+      --ok: #157347;
+      --shadow: 0 18px 50px rgba(15, 39, 62, 0.12);
+      --radius: 8px;
+      --mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+      --sans: "Segoe UI", "Noto Sans TC", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--sans);
+      color: var(--ink);
+      background:
+        linear-gradient(180deg, rgba(20,108,148,0.08), transparent 260px),
+        var(--bg);
+    }
+
+    button, input, select, textarea { font: inherit; }
+
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--ink);
+      border-radius: 7px;
+      min-height: 36px;
+      padding: 0 12px;
+      cursor: pointer;
+    }
+
+    button:hover { border-color: #aac0cf; background: #f9fbfc; }
+    button.primary { background: var(--accent); border-color: var(--accent); color: white; }
+    button.primary:hover { background: #0f5c81; }
+    button.success { background: var(--accent-2); border-color: var(--accent-2); color: white; }
+    button.danger { background: #fff7f6; border-color: #f1b8b2; color: var(--danger); }
+    button.icon { width: 36px; padding: 0; display: inline-grid; place-items: center; }
+
+    input, select, textarea {
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      background: white;
+      color: var(--ink);
+      padding: 8px 10px;
+      min-width: 0;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid rgba(20,108,148,0.18);
+      border-color: var(--accent);
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      resize: vertical;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .app {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 22px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(340px, 430px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .panel-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .panel-title {
+      font-weight: 700;
+      font-size: 16px;
+    }
+
+    .panel-body { padding: 16px; }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .field { display: grid; gap: 5px; }
+    .field.full { grid-column: 1 / -1; }
+    label { font-size: 12px; color: var(--muted); font-weight: 650; }
+
+    .toolbar {
+      display: grid;
+      grid-template-columns: minmax(220px, 1fr) 160px 150px auto;
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-2);
+      border-top-left-radius: var(--radius);
+      border-top-right-radius: var(--radius);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      padding: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .stat {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 7px;
+      padding: 9px 10px;
+    }
+
+    .stat span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 20px;
+      margin-top: 2px;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      max-height: 620px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 980px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px 10px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 13px;
+    }
+
+    th {
+      position: sticky;
+      top: 0;
+      background: #f6f9fb;
+      z-index: 1;
+      color: #425363;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0;
+    }
+
+    tr:hover td { background: #fbfdfe; }
+
+    .mono { font-family: var(--mono); }
+    .muted { color: var(--muted); }
+    .ok { color: var(--ok); }
+    .warn { color: var(--warn); }
+    .danger-text { color: var(--danger); }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #f7fafc;
+      font-size: 12px;
+      color: #3f5364;
+    }
+
+    .row-actions {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-2);
+      border-top-left-radius: var(--radius);
+      border-top-right-radius: var(--radius);
+    }
+
+    .tab {
+      border: 0;
+      border-right: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+      min-height: 42px;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
+    .tab.active {
+      background: white;
+      color: var(--accent);
+    }
+
+    .export-grid {
+      display: grid;
+      grid-template-columns: 180px 1fr auto auto;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .notice {
+      border: 1px solid #f0d394;
+      background: #fffaf0;
+      color: #6f4700;
+      padding: 10px 12px;
+      border-radius: 7px;
+      font-size: 13px;
+      line-height: 1.45;
+      margin-bottom: 12px;
+    }
+
+    .drop-zone {
+      border: 1px dashed #9bb5c8;
+      background: #f8fbfd;
+      border-radius: 7px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .file-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .footer-line {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    dialog {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 0;
+      width: min(920px, calc(100vw - 28px));
+    }
+
+    dialog::backdrop { background: rgba(4, 20, 32, 0.38); }
+    .dialog-body { padding: 16px; }
+
+    .status-line {
+      min-height: 20px;
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 10px;
+    }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 1080px) {
+      .layout { grid-template-columns: 1fr; }
+      .toolbar { grid-template-columns: 1fr 1fr; }
+      .export-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 680px) {
+      .app { padding: 14px; }
+      header { align-items: flex-start; flex-direction: column; }
+      .top-actions { justify-content: flex-start; }
+      .form-grid, .stats, .toolbar { grid-template-columns: 1fr; }
+      h1 { font-size: 21px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>NCUT eduroam 帳號管理工具</h1>
+        <div class="subtitle">daloRADIUS Import Users CSV 產生器</div>
+      </div>
+      <div class="top-actions">
+        <button id="openImportBtn" title="匯入 CSV 或 JSON">匯入</button>
+        <button id="downloadJsonBtn" title="下載本機資料備份">備份 JSON</button>
+        <button id="clearAllBtn" class="danger" title="清空本機清單">清空</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title" id="formTitle">新增帳號</div>
+          <button id="resetFormBtn" class="icon" title="清除表單">↺</button>
+        </div>
+        <div class="panel-body">
+          <form id="accountForm" class="form-grid" autocomplete="off">
+            <input type="hidden" id="recordId">
+            <div class="field full">
+              <label for="username">帳號 username</label>
+              <input id="username" required placeholder="user@ncut.edu.tw">
+            </div>
+            <div class="field">
+              <label for="password">密碼 password</label>
+              <input id="password" type="password" required maxlength="128" placeholder="8-128 字元">
+            </div>
+            <div class="field">
+              <label for="email">Email</label>
+              <input id="email" type="email" placeholder="user@ncut.edu.tw">
+            </div>
+            <div class="field">
+              <label for="firstname">First name</label>
+              <input id="firstname" required placeholder="NCUT">
+            </div>
+            <div class="field">
+              <label for="lastname">Last name</label>
+              <input id="lastname" required placeholder="User">
+            </div>
+            <div class="field">
+              <label for="group">群組 group</label>
+              <input id="group" list="groupList" placeholder="students">
+              <datalist id="groupList"></datalist>
+            </div>
+            <div class="field">
+              <label for="expiration">到期日 expiration</label>
+              <input id="expiration" type="date">
+            </div>
+            <div class="field">
+              <label for="framedipaddress">固定 IP</label>
+              <input id="framedipaddress" placeholder="10.1.0.10">
+            </div>
+            <div class="field">
+              <label for="department">單位 department</label>
+              <input id="department" placeholder="NCUT">
+            </div>
+            <div class="field">
+              <label for="company">公司 company</label>
+              <input id="company" placeholder="National Chin-Yi University of Technology">
+            </div>
+            <div class="field">
+              <label for="mobilephone">手機</label>
+              <input id="mobilephone">
+            </div>
+            <div class="field">
+              <label for="workphone">分機</label>
+              <input id="workphone">
+            </div>
+            <div class="field">
+              <label for="sessiontimeout">Session-Timeout 秒</label>
+              <input id="sessiontimeout" inputmode="numeric" placeholder="3600">
+            </div>
+            <div class="field">
+              <label for="idletimeout">Idle-Timeout 秒</label>
+              <input id="idletimeout" inputmode="numeric" placeholder="600">
+            </div>
+            <div class="field">
+              <label for="maxdailysession">Max-Daily-Session 秒</label>
+              <input id="maxdailysession" inputmode="numeric" placeholder="86400">
+            </div>
+            <div class="field">
+              <label for="country">國家</label>
+              <input id="country" placeholder="TW">
+            </div>
+            <div class="field full">
+              <label for="address">地址</label>
+              <input id="address">
+            </div>
+            <div class="field">
+              <label for="city">城市</label>
+              <input id="city">
+            </div>
+            <div class="field">
+              <label for="state">縣市/州</label>
+              <input id="state">
+            </div>
+            <div class="field">
+              <label for="zip">郵遞區號</label>
+              <input id="zip">
+            </div>
+            <div class="field full">
+              <label for="notes">備註</label>
+              <input id="notes" placeholder="本機管理備註，不會輸出到 daloRADIUS 匯入 CSV">
+            </div>
+            <div class="field full">
+              <button class="primary" type="submit" id="saveBtn">儲存帳號</button>
+            </div>
+          </form>
+          <div id="formStatus" class="status-line"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="toolbar">
+          <input id="searchBox" placeholder="搜尋帳號、姓名、群組">
+          <select id="groupFilter"></select>
+          <select id="validFilter">
+            <option value="all">全部</option>
+            <option value="valid">格式正常</option>
+            <option value="invalid">需修正</option>
+          </select>
+          <button id="copySelectedBtn" title="複製勾選帳號 CSV">複製勾選</button>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>帳號數</span><strong id="totalCount">0</strong></div>
+          <div class="stat"><span>可匯入</span><strong id="validCount">0</strong></div>
+          <div class="stat"><span>需修正</span><strong id="invalidCount">0</strong></div>
+          <div class="stat"><span>群組數</span><strong id="groupCount">0</strong></div>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAll"></th>
+                <th>帳號</th>
+                <th>姓名</th>
+                <th>群組</th>
+                <th>Email</th>
+                <th>到期</th>
+                <th>狀態</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="accountRows"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <section class="panel" style="margin-top:16px">
+      <div class="tabs">
+        <button class="tab active" data-tab="csvTab">daloRADIUS CSV</button>
+        <button class="tab" data-tab="batchesTab">依群組分批</button>
+        <button class="tab" data-tab="reviewTab">檢查清單</button>
+      </div>
+      <div class="panel-body" id="csvTab">
+        <div class="notice">
+          Import Users 請選 <span class="mono">Authentication Type = Based on username and password</span>、
+          <span class="mono">PasswordType = Cleartext-Password</span>。daloRADIUS 匯入只會新增不存在的帳號。
+          送 TANRC / eduroam roaming 的帳號請一律使用 <span class="mono">user@ncut.edu.tw</span>，短帳號不適合跨校路由。
+        </div>
+        <div class="export-grid">
+          <select id="exportGroup"></select>
+          <select id="exportMode">
+            <option value="valid">只輸出格式正常帳號</option>
+            <option value="selected">只輸出勾選帳號</option>
+            <option value="all">輸出全部帳號</option>
+          </select>
+          <button id="copyCsvBtn" class="success">複製 CSV</button>
+          <button id="downloadCsvBtn">下載 CSV</button>
+        </div>
+        <textarea id="csvOutput" spellcheck="false"></textarea>
+        <div class="footer-line">
+          <span>欄位順序：username,password,email,firstname,lastname,framedipaddress,expiration,department,company,mobilephone,workphone,homephone,address,city,state,country,zip,sessiontimeout,idletimeout,maxdailysession</span>
+          <span id="csvMeta"></span>
+        </div>
+      </div>
+      <div class="panel-body hidden" id="batchesTab">
+        <div id="batchList"></div>
+      </div>
+      <div class="panel-body hidden" id="reviewTab">
+        <textarea id="reviewOutput" spellcheck="false"></textarea>
+      </div>
+    </section>
+  </div>
+
+  <dialog id="importDialog">
+    <div class="panel-header">
+      <div class="panel-title">匯入資料</div>
+      <button class="icon" id="closeImportBtn" title="關閉">×</button>
+    </div>
+    <div class="dialog-body">
+      <div class="drop-zone">
+        <div class="file-row">
+          <input type="file" id="importFile" accept=".csv,.json,.txt,application/json,text/csv,text/plain">
+          <select id="importMode">
+            <option value="merge">合併更新同名帳號</option>
+            <option value="replace">取代目前清單</option>
+          </select>
+          <button id="loadFileBtn" class="primary">載入</button>
+        </div>
+        <textarea id="pasteInput" placeholder="貼上 daloRADIUS CSV 或 JSON"></textarea>
+        <div class="file-row">
+          <button id="loadPasteBtn">從貼上內容匯入</button>
+          <button id="downloadTemplateBtn">下載 CSV 範本</button>
+        </div>
+      </div>
+      <div id="importStatus" class="status-line"></div>
+    </div>
+  </dialog>
+
+  <script>
+    const STORAGE_KEY = "ncut-eduroam-account-manager-v1";
+    const CSV_FIELDS = [
+      "username", "password", "email", "firstname", "lastname",
+      "framedipaddress", "expiration", "department", "company", "mobilephone",
+      "workphone", "homephone", "address", "city", "state", "country", "zip",
+      "sessiontimeout", "idletimeout", "maxdailysession"
+    ];
+    const LOCAL_FIELDS = [...CSV_FIELDS, "group", "notes", "id", "updatedAt"];
+    const requiredRealm = "@ncut.edu.tw";
+    const usernameRegex = /^[A-Za-z0-9][A-Za-z0-9_.-]*@ncut\.edu\.tw$/i;
+    const nameRegex = /^[ \-\p{L}0-9]+$/u;
+    const safePasswordRegex = /^\P{C}+$/u;
+    const ipRegex = /^(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)$/;
+    const numericFields = ["sessiontimeout", "idletimeout", "maxdailysession"];
+
+    let accounts = [];
+    let selected = new Set();
+
+    const $ = (id) => document.getElementById(id);
+
+    function uid() {
+      return "acct-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+    }
+
+    function nowText() {
+      return new Date().toISOString();
+    }
+
+    function normalizeAccount(input) {
+      const item = {};
+      for (const field of LOCAL_FIELDS) item[field] = String(input[field] ?? "").trim();
+      if (!item.id) item.id = uid();
+      if (!item.email && item.username.includes("@")) item.email = item.username;
+      if (!item.firstname && item.username) item.firstname = "NCUT";
+      if (!item.lastname && item.username) item.lastname = item.username.split("@")[0].replace(/[^A-Za-z0-9 -]/g, " ").trim() || "User";
+      item.updatedAt = input.updatedAt || nowText();
+      return item;
+    }
+
+    function validateAccount(item) {
+      const errors = [];
+      if (!usernameRegex.test(item.username)) errors.push("username 必須是 user@ncut.edu.tw");
+      if (!safePasswordRegex.test(item.password || "")) errors.push("password");
+      if ((item.password || "").length > 128) errors.push("password >128");
+      if (!nameRegex.test(item.firstname || "")) errors.push("firstname");
+      if (!nameRegex.test(item.lastname || "")) errors.push("lastname");
+      if (item.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(item.email)) errors.push("email");
+      if (item.framedipaddress && !ipRegex.test(item.framedipaddress)) errors.push("ip");
+      if (item.expiration && !/^\d{4}-\d{2}-\d{2}$/.test(item.expiration)) errors.push("expiration");
+      for (const field of numericFields) {
+        if (item[field] && !/^\d+$/.test(item[field])) errors.push(field);
+      }
+      return errors;
+    }
+
+    function saveLocal() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(accounts));
+    }
+
+    function loadLocal() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        accounts = raw ? JSON.parse(raw).map(normalizeAccount) : [];
+      } catch {
+        accounts = [];
+      }
+    }
+
+    function csvCell(value) {
+      const s = String(value ?? "");
+      if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+      return s;
+    }
+
+    function toCsv(rows, includeHeader = false) {
+      const lines = [];
+      if (includeHeader) lines.push(CSV_FIELDS.map(csvCell).join(","));
+      for (const item of rows) {
+        lines.push(CSV_FIELDS.map((field) => csvCell(item[field])).join(","));
+      }
+      return lines.join("\n");
+    }
+
+    function parseCsv(text) {
+      const rows = [];
+      let row = [], cell = "", quoted = false;
+      const input = String(text || "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+      for (let i = 0; i < input.length; i++) {
+        const ch = input[i];
+        if (quoted) {
+          if (ch === '"' && input[i + 1] === '"') { cell += '"'; i++; }
+          else if (ch === '"') quoted = false;
+          else cell += ch;
+        } else {
+          if (ch === '"') quoted = true;
+          else if (ch === ",") { row.push(cell); cell = ""; }
+          else if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; }
+          else cell += ch;
+        }
+      }
+      if (cell.length || row.length) { row.push(cell); rows.push(row); }
+      return rows.filter((r) => r.some((c) => String(c).trim() !== ""));
+    }
+
+    function rowsToAccounts(rows) {
+      if (!rows.length) return [];
+      const first = rows[0].map((x) => String(x).trim().toLowerCase());
+      const hasHeader = CSV_FIELDS.every((field, i) => first[i] === field) || first.includes("username");
+      const header = hasHeader ? first : CSV_FIELDS;
+      const dataRows = hasHeader ? rows.slice(1) : rows;
+      return dataRows.map((row) => {
+        const obj = {};
+        header.forEach((field, i) => {
+          if (LOCAL_FIELDS.includes(field)) obj[field] = row[i] ?? "";
+        });
+        if (!obj.username && row[0]) {
+          CSV_FIELDS.forEach((field, i) => obj[field] = row[i] ?? "");
+        }
+        return normalizeAccount(obj);
+      }).filter((item) => item.username);
+    }
+
+    function filteredAccounts() {
+      const q = $("searchBox").value.trim().toLowerCase();
+      const group = $("groupFilter").value;
+      const validity = $("validFilter").value;
+      return accounts.filter((item) => {
+        const text = [item.username, item.email, item.firstname, item.lastname, item.group, item.notes].join(" ").toLowerCase();
+        if (q && !text.includes(q)) return false;
+        if (group !== "__all" && (item.group || "") !== group) return false;
+        const valid = validateAccount(item).length === 0;
+        if (validity === "valid" && !valid) return false;
+        if (validity === "invalid" && valid) return false;
+        return true;
+      });
+    }
+
+    function groups() {
+      return [...new Set(accounts.map((x) => x.group || "").filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    }
+
+    function refreshSelectors() {
+      const list = $("groupList");
+      list.innerHTML = groups().map((g) => `<option value="${escapeHtml(g)}"></option>`).join("");
+
+      const previousFilter = $("groupFilter").value || "__all";
+      const previousExport = $("exportGroup").value || "__all";
+      const options = [`<option value="__all">全部群組</option>`, `<option value="">未分組</option>`]
+        .concat(groups().map((g) => `<option value="${escapeHtml(g)}">${escapeHtml(g)}</option>`));
+      $("groupFilter").innerHTML = options.join("");
+      $("exportGroup").innerHTML = options.join("");
+      $("groupFilter").value = [...$("groupFilter").options].some((o) => o.value === previousFilter) ? previousFilter : "__all";
+      $("exportGroup").value = [...$("exportGroup").options].some((o) => o.value === previousExport) ? previousExport : "__all";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    function renderTable() {
+      refreshSelectors();
+      const rows = filteredAccounts();
+      $("accountRows").innerHTML = rows.map((item) => {
+        const errors = validateAccount(item);
+        const valid = errors.length === 0;
+        const checked = selected.has(item.id) ? "checked" : "";
+        return `<tr>
+          <td><input type="checkbox" data-select="${item.id}" ${checked}></td>
+          <td><div class="mono">${escapeHtml(item.username)}</div><div class="muted">${escapeHtml(item.notes)}</div></td>
+          <td>${escapeHtml(item.firstname)} ${escapeHtml(item.lastname)}</td>
+          <td>${item.group ? `<span class="chip">${escapeHtml(item.group)}</span>` : `<span class="muted">未分組</span>`}</td>
+          <td>${escapeHtml(item.email)}</td>
+          <td>${item.expiration ? escapeHtml(item.expiration) : `<span class="muted">無</span>`}</td>
+          <td>${valid ? `<span class="ok">可匯入</span>` : `<span class="danger-text">${escapeHtml(errors.join(", "))}</span>`}</td>
+          <td><div class="row-actions">
+            <button class="icon" data-edit="${item.id}" title="編輯">✎</button>
+            <button class="icon danger" data-delete="${item.id}" title="刪除">×</button>
+          </div></td>
+        </tr>`;
+      }).join("");
+
+      const validCount = accounts.filter((x) => validateAccount(x).length === 0).length;
+      $("totalCount").textContent = accounts.length;
+      $("validCount").textContent = validCount;
+      $("invalidCount").textContent = accounts.length - validCount;
+      $("groupCount").textContent = groups().length;
+      $("selectAll").checked = rows.length > 0 && rows.every((x) => selected.has(x.id));
+      renderExports();
+    }
+
+    function setStatus(message, kind = "muted") {
+      const el = $("formStatus");
+      el.className = "status-line " + (kind === "danger" ? "danger-text" : kind === "ok" ? "ok" : "");
+      el.textContent = message;
+    }
+
+    function getFormData() {
+      const obj = {};
+      for (const field of LOCAL_FIELDS) {
+        const el = $(field);
+        if (el) obj[field] = el.value;
+      }
+      obj.id = $("recordId").value;
+      return normalizeAccount(obj);
+    }
+
+    function fillForm(item) {
+      $("recordId").value = item?.id || "";
+      for (const field of LOCAL_FIELDS) {
+        const el = $(field);
+        if (el) el.value = item?.[field] || "";
+      }
+      $("formTitle").textContent = item ? "修改帳號" : "新增帳號";
+      $("saveBtn").textContent = item ? "更新帳號" : "儲存帳號";
+      setStatus("");
+    }
+
+    function resetForm() {
+      fillForm(null);
+      $("username").focus();
+    }
+
+    function upsertAccount(item) {
+      const errors = validateAccount(item);
+      if (errors.length) {
+        setStatus("請修正：" + errors.join(", "), "danger");
+        return;
+      }
+      const duplicate = accounts.find((x) => x.username === item.username && x.id !== item.id);
+      if (duplicate) {
+        setStatus("帳號重複：" + item.username, "danger");
+        return;
+      }
+      const index = accounts.findIndex((x) => x.id === item.id);
+      item.updatedAt = nowText();
+      if (index >= 0) accounts[index] = item;
+      else accounts.push(item);
+      saveLocal();
+      resetForm();
+      renderTable();
+      setStatus("已儲存 " + item.username, "ok");
+    }
+
+    function rowsForExport() {
+      const group = $("exportGroup").value;
+      const mode = $("exportMode").value;
+      let rows = [...accounts];
+      if (group !== "__all") rows = rows.filter((x) => (x.group || "") === group);
+      if (mode === "selected") rows = rows.filter((x) => selected.has(x.id));
+      if (mode === "valid") rows = rows.filter((x) => validateAccount(x).length === 0);
+      return rows;
+    }
+
+    function renderExports() {
+      const rows = rowsForExport();
+      const csv = toCsv(rows, false);
+      $("csvOutput").value = csv;
+      $("csvMeta").textContent = `${rows.length} 筆，${csv.length} 字元`;
+      renderBatches();
+      renderReview();
+    }
+
+    function renderBatches() {
+      const byGroup = new Map();
+      for (const item of accounts.filter((x) => validateAccount(x).length === 0)) {
+        const key = item.group || "未分組";
+        if (!byGroup.has(key)) byGroup.set(key, []);
+        byGroup.get(key).push(item);
+      }
+      const blocks = [...byGroup.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([group, rows], index) => {
+        const id = "batchCsv" + index;
+        return `<div class="panel" style="box-shadow:none;margin-bottom:12px">
+          <div class="panel-header">
+            <div class="panel-title">${escapeHtml(group)} <span class="muted">(${rows.length})</span></div>
+            <div class="row-actions">
+              <button data-copy-batch="${id}">複製</button>
+              <button data-download-batch="${id}" data-group="${escapeHtml(group)}">下載</button>
+            </div>
+          </div>
+          <div class="panel-body"><textarea id="${id}" spellcheck="false">${escapeHtml(toCsv(rows, false))}</textarea></div>
+        </div>`;
+      });
+      $("batchList").innerHTML = blocks.length ? blocks.join("") : `<div class="muted">沒有可匯入的帳號。</div>`;
+    }
+
+    function renderReview() {
+      const lines = [];
+      lines.push("NCUT eduroam local account list");
+      lines.push("Generated: " + new Date().toLocaleString());
+      lines.push("");
+      for (const item of accounts) {
+        const errors = validateAccount(item);
+        lines.push(`${errors.length ? "[FIX]" : "[OK]"} ${item.username} | ${item.firstname} ${item.lastname} | ${item.group || "未分組"} | ${errors.join(", ")}`);
+      }
+      $("reviewOutput").value = lines.join("\n");
+    }
+
+    async function copyText(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } catch {
+        const tmp = document.createElement("textarea");
+        tmp.value = text;
+        document.body.appendChild(tmp);
+        tmp.select();
+        const ok = document.execCommand("copy");
+        tmp.remove();
+        return ok;
+      }
+    }
+
+    function downloadText(filename, text, type = "text/plain;charset=utf-8") {
+      const blob = new Blob([text], { type });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function importAccounts(items, mode) {
+      if (mode === "replace") {
+        accounts = [];
+        selected.clear();
+      }
+      let added = 0, updated = 0;
+      for (const raw of items) {
+        const item = normalizeAccount(raw);
+        const index = accounts.findIndex((x) => x.username === item.username);
+        if (index >= 0) {
+          accounts[index] = { ...accounts[index], ...item, id: accounts[index].id, updatedAt: nowText() };
+          updated++;
+        } else {
+          accounts.push(item);
+          added++;
+        }
+      }
+      saveLocal();
+      renderTable();
+      return { added, updated };
+    }
+
+    function parseImportText(text) {
+      const raw = String(text || "").trim();
+      if (!raw) return [];
+      if (raw.startsWith("[") || raw.startsWith("{")) {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.map(normalizeAccount) : (Array.isArray(parsed.accounts) ? parsed.accounts.map(normalizeAccount) : []);
+      }
+      return rowsToAccounts(parseCsv(raw));
+    }
+
+    document.addEventListener("click", async (event) => {
+      const editId = event.target.dataset.edit;
+      const deleteId = event.target.dataset.delete;
+      const copyBatch = event.target.dataset.copyBatch;
+      const downloadBatch = event.target.dataset.downloadBatch;
+      if (editId) {
+        const item = accounts.find((x) => x.id === editId);
+        if (item) fillForm(item);
+      }
+      if (deleteId) {
+        const item = accounts.find((x) => x.id === deleteId);
+        if (item && confirm("從本機清單刪除 " + item.username + "？")) {
+          accounts = accounts.filter((x) => x.id !== deleteId);
+          selected.delete(deleteId);
+          saveLocal();
+          renderTable();
+        }
+      }
+      if (copyBatch) {
+        await copyText($(copyBatch).value);
+      }
+      if (downloadBatch) {
+        const group = (event.target.dataset.group || "group").replace(/[\\/:*?"<>|]+/g, "_");
+        downloadText(`daloradius-import-${group}.csv`, $(downloadBatch).value, "text/csv;charset=utf-8");
+      }
+    });
+
+    $("accountForm").addEventListener("submit", (event) => {
+      event.preventDefault();
+      upsertAccount(getFormData());
+    });
+
+    $("username").addEventListener("blur", () => {
+      const username = $("username").value.trim();
+      if (!$("email").value && username.includes("@")) $("email").value = username;
+      if (!$("firstname").value && username) $("firstname").value = "NCUT";
+      if (!$("lastname").value && username) $("lastname").value = username.split("@")[0].replace(/[^A-Za-z0-9 -]/g, " ").trim() || "User";
+    });
+
+    $("resetFormBtn").addEventListener("click", resetForm);
+    $("searchBox").addEventListener("input", renderTable);
+    $("groupFilter").addEventListener("change", renderTable);
+    $("validFilter").addEventListener("change", renderTable);
+    $("exportGroup").addEventListener("change", renderExports);
+    $("exportMode").addEventListener("change", renderExports);
+
+    $("accountRows").addEventListener("change", (event) => {
+      const id = event.target.dataset.select;
+      if (!id) return;
+      if (event.target.checked) selected.add(id);
+      else selected.delete(id);
+      renderExports();
+    });
+
+    $("selectAll").addEventListener("change", (event) => {
+      for (const item of filteredAccounts()) {
+        if (event.target.checked) selected.add(item.id);
+        else selected.delete(item.id);
+      }
+      renderTable();
+    });
+
+    $("copyCsvBtn").addEventListener("click", async () => {
+      const ok = await copyText($("csvOutput").value);
+      $("csvMeta").textContent = ok ? "已複製到剪貼簿" : "無法複製";
+    });
+
+    $("copySelectedBtn").addEventListener("click", async () => {
+      const rows = accounts.filter((x) => selected.has(x.id) && validateAccount(x).length === 0);
+      await copyText(toCsv(rows, false));
+    });
+
+    $("downloadCsvBtn").addEventListener("click", () => {
+      downloadText("daloradius-import-users.csv", $("csvOutput").value, "text/csv;charset=utf-8");
+    });
+
+    $("downloadJsonBtn").addEventListener("click", () => {
+      downloadText("ncut-eduroam-accounts.json", JSON.stringify(accounts, null, 2), "application/json;charset=utf-8");
+    });
+
+    $("clearAllBtn").addEventListener("click", () => {
+      if (confirm("清空本機帳號清單？")) {
+        accounts = [];
+        selected.clear();
+        saveLocal();
+        renderTable();
+        resetForm();
+      }
+    });
+
+    $("openImportBtn").addEventListener("click", () => $("importDialog").showModal());
+    $("closeImportBtn").addEventListener("click", () => $("importDialog").close());
+
+    $("loadFileBtn").addEventListener("click", async () => {
+      const file = $("importFile").files[0];
+      if (!file) {
+        $("importStatus").textContent = "請先選擇檔案。";
+        return;
+      }
+      const text = await file.text();
+      try {
+        const result = importAccounts(parseImportText(text), $("importMode").value);
+        $("importStatus").textContent = `已匯入：新增 ${result.added}，更新 ${result.updated}`;
+      } catch (error) {
+        $("importStatus").textContent = "匯入失敗：" + error.message;
+      }
+    });
+
+    $("loadPasteBtn").addEventListener("click", () => {
+      try {
+        const result = importAccounts(parseImportText($("pasteInput").value), $("importMode").value);
+        $("importStatus").textContent = `已匯入：新增 ${result.added}，更新 ${result.updated}`;
+      } catch (error) {
+        $("importStatus").textContent = "匯入失敗：" + error.message;
+      }
+    });
+
+    $("downloadTemplateBtn").addEventListener("click", () => {
+      downloadText("daloradius-import-template.csv", CSV_FIELDS.join(",") + "\n", "text/csv;charset=utf-8");
+    });
+
+    document.querySelectorAll(".tab").forEach((tab) => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach((x) => x.classList.remove("active"));
+        document.querySelectorAll("#csvTab,#batchesTab,#reviewTab").forEach((x) => x.classList.add("hidden"));
+        tab.classList.add("active");
+        $(tab.dataset.tab).classList.remove("hidden");
+      });
+    });
+
+    loadLocal();
+    renderTable();
+    resetForm();
+  </script>
+</body>
+</html>

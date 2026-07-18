@@ -1,0 +1,50 @@
+# Runtime dependencies
+node_modules/
+vendor/
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.crt
+*.cer
+*.csr
+*.der
+id_rsa*
+id_ed25519*
+clients.conf
+
+# Generated reports and rendered artifacts
+rendered_*/
+*.docx
+*.pdf
+*.png
+*.tar
+radius_technical_capture_*.txt
+radiusd_xc_report_*.txt
+system_report_capture_*.txt
+
+# Device backups and operational captures
+Ruckus/backups/
+*.bak
+*.old
+*.orig
+*.save
+*~
+
+# Local tool caches
+.codex_docx_render_deps/
+.DS_Store
+Thumbs.db
+
+# Logs and temporary files
+*.log
+tmp/
+temp/
+cache/
