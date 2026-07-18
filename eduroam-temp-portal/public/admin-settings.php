@@ -722,12 +722,83 @@ render_header('系統設定 - ' . APP_NAME, true);
     color: #7c3d00;
     background: #fff1df;
 }
+
+/* ── Settings overview ───────────────────────────────────── */
+.settings-hub {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 22px;
+}
+.settings-hub-card {
+    background: #ffffff;
+    border: 1px solid #dbe2ea;
+    border-radius: 8px;
+    padding: 16px;
+}
+.settings-hub-card h2 {
+    margin: 0 0 6px;
+    font-size: 17px;
+}
+.settings-hub-card p {
+    margin: 0 0 12px;
+    color: #6b7787;
+    font-size: 14px;
+}
+.settings-hub-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.settings-hub-links a {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: 1px solid #c9d3df;
+    border-radius: 6px;
+    color: #1d2635;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 7px 10px;
+}
+.settings-hub-links a:hover {
+    background: #edf4fb;
+    border-color: #9fc4ed;
+    color: #075aa5;
+}
+.settings-count {
+    align-items: center;
+    background: #e8edf3;
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 12px;
+    justify-content: center;
+    min-width: 24px;
+    padding: 1px 7px;
+}
+.settings-section-label {
+    align-items: baseline;
+    display: flex;
+    gap: 10px;
+    margin: 28px 0 -8px;
+}
+.settings-section-label strong {
+    color: #1d2635;
+    font-size: 15px;
+}
+.settings-section-label span {
+    color: #6b7787;
+    font-size: 13px;
+}
+@media (max-width: 900px) {
+    .settings-hub { grid-template-columns: 1fr; }
+}
 </style>
 
 <section class="dashboard-head">
     <div>
         <h1>系統設定</h1>
-        <p>管理系統管理員帳號、Email 通知、AD 伺服器串接、SQL View 帳號匯入，以及申請者允許使用的 Email 網域。</p>
+        <p>依用途分成權限、通知、認證資料來源三類；先選分類，再展開需要調整的設定。</p>
     </div>
 </section>
 
@@ -737,9 +808,42 @@ $ic_mail  = '<svg class="ps-icon" width="18" height="18" viewBox="0 0 18 18" fil
 $ic_ad    = '<svg class="ps-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="5" rx="1.5"/><rect x="2" y="10" width="14" height="5" rx="1.5"/><circle cx="13.5" cy="5.5" r="0.6" fill="currentColor" stroke="none"/><circle cx="13.5" cy="12.5" r="0.6" fill="currentColor" stroke="none"/></svg>';
 $ic_sql   = '<svg class="ps-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="14" height="12" rx="1.5"/><path d="M2 8h14M7 8v7"/></svg>';
 $ic_globe = '<svg class="ps-icon" width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="9" r="7"/><path d="M9 2Q6 9 9 16M9 2Q12 9 9 16M2 9h14"/></svg>';
+$enabledDomainCount = count(array_filter($domains, static fn($item) => (int) ($item['enabled'] ?? 0) === 1));
+$enabledSvCount = count(array_filter($sqlViews, static fn($item) => (int) ($item['enabled'] ?? 0) === 1));
 ?>
 
-<details class="panel collapsible-panel">
+<section class="settings-hub" aria-label="系統設定分類">
+    <div class="settings-hub-card">
+        <h2>權限與申請</h2>
+        <p>管理後台管理員與可申請臨時帳號的 Google Email 網域。</p>
+        <div class="settings-hub-links">
+            <a href="#settings-admin" data-settings-target="#settings-admin">管理員 <span class="settings-count"><?= count($admins) ?></span></a>
+            <a href="#settings-domains" data-settings-target="#settings-domains">允許網域 <span class="settings-count"><?= $enabledDomainCount ?></span></a>
+        </div>
+    </div>
+    <div class="settings-hub-card">
+        <h2>通知</h2>
+        <p>設定 Gmail SMTP、通知收件人與測試信寄送。</p>
+        <div class="settings-hub-links">
+            <a href="#settings-mail" data-settings-target="#settings-mail">Email 通知 <span class="settings-count"><?= $mail['enabled'] ? 'ON' : 'OFF' ?></span></a>
+        </div>
+    </div>
+    <div class="settings-hub-card">
+        <h2>認證資料來源</h2>
+        <p>串接 AD Server 與外部 SQL View 帳號匯入來源。</p>
+        <div class="settings-hub-links">
+            <a href="#settings-ad" data-settings-target="#settings-ad">AD Server <span class="settings-count"><?= $ad['enabled'] ? 'ON' : 'OFF' ?></span></a>
+            <a href="#sv-panel" data-settings-target="#sv-panel">SQL View <span class="settings-count"><?= $enabledSvCount ?></span></a>
+        </div>
+    </div>
+</section>
+
+<div class="settings-section-label">
+    <strong>權限與申請</strong>
+    <span>後台登入權限、申請帳號允許網域</span>
+</div>
+
+<details class="panel collapsible-panel" id="settings-admin">
     <summary class="panel-summary">
         <span><?= $ic_admin ?>系統管理員權限</span>
         <small>新增管理員、查看管理員清單</small>
@@ -777,7 +881,86 @@ $ic_globe = '<svg class="ps-icon" width="18" height="18" viewBox="0 0 18 18" fil
     </div>
 </details>
 
-<details class="panel collapsible-panel">
+<details class="panel collapsible-panel" id="settings-domains">
+    <summary class="panel-summary">
+        <span><?= $ic_globe ?>申請帳號開放允許的網域清單</span>
+        <small><?= $enabledDomainCount ?> 個網域已允許</small>
+    </summary>
+    <div class="panel-body">
+    <form method="post" style="display:grid;grid-template-columns:minmax(200px,1fr) 120px auto;gap:12px;align-items:end;margin-bottom:18px;">
+        <?= csrf_field() ?>
+        <input type="hidden" name="action" value="add_allowed_domain">
+        <label>
+            <span>允許 Google Email 網域</span>
+            <input name="domain" required maxlength="190" placeholder="例如 gmail.com">
+        </label>
+        <label>
+            <span>最長期限（月）</span>
+            <input type="number" name="max_months" value="12" min="1" max="120" required>
+        </label>
+        <button type="submit" class="primary">加入網域</button>
+    </form>
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>網域</th><th>狀態</th><th>最長申請期限</th><th>建立者</th><th>建立時間</th><th>管理</th></tr></thead>
+            <tbody>
+            <?php foreach ($domains as $item): ?>
+                <tr>
+                    <td><code><?= e($item['domain']) ?></code></td>
+                    <td><?= (int) $item['enabled'] === 1
+                        ? '<span class="badge-active">允許</span>'
+                        : '<span class="badge-inactive">停用</span>' ?></td>
+                    <td>
+                        <form method="post" style="display:inline-flex;gap:6px;align-items:center;">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="update_domain_max_months">
+                            <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+                            <input type="number" name="max_months" value="<?= (int) ($item['max_months'] ?? 12) ?>" min="1" max="120" style="width:72px;padding:6px 8px;">
+                            <span style="color:#5b6778;white-space:nowrap;">個月</span>
+                            <button type="submit" class="secondary" style="padding:6px 10px;font-size:13px;white-space:nowrap;">更新</button>
+                        </form>
+                    </td>
+                    <td><?= e($item['created_by']) ?></td>
+                    <td><?= e($item['created_at']) ?></td>
+                    <td>
+                        <div class="inline-actions">
+                        <?php if ((int) $item['enabled'] === 1): ?>
+                            <form method="post" onsubmit="return confirm('確定要停用此允許網域？停用後此網域無法提出新申請。');">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="remove_allowed_domain">
+                                <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+                                <button class="secondary" type="submit">停用</button>
+                            </form>
+                        <?php else: ?>
+                            <form method="post">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="enable_allowed_domain">
+                                <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+                                <button class="secondary" type="submit">啟用</button>
+                            </form>
+                        <?php endif; ?>
+                            <form method="post" onsubmit="return confirm('確定要刪除此允許網域？刪除後若需要使用必須重新加入。');">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="action" value="delete_allowed_domain">
+                                <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
+                                <button class="danger" type="submit">刪除</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    </div>
+</details>
+
+<div class="settings-section-label">
+    <strong>通知</strong>
+    <span>Gmail SMTP、管理者與申請者 Email 通知</span>
+</div>
+
+<details class="panel collapsible-panel" id="settings-mail">
     <summary class="panel-summary">
         <span><?= $ic_mail ?>Nodemailer + Gmail SMTP 通知設定</span>
         <small>設定通知寄件帳號與測試信</small>
@@ -850,7 +1033,12 @@ $ic_globe = '<svg class="ps-icon" width="18" height="18" viewBox="0 0 18 18" fil
     </div>
 </details>
 
-<details class="panel collapsible-panel" open>
+<div class="settings-section-label">
+    <strong>認證資料來源</strong>
+    <span>AD Server 串接、SQL View 帳號匯入</span>
+</div>
+
+<details class="panel collapsible-panel" id="settings-ad">
     <summary class="panel-summary">
         <span><?= $ic_ad ?>AD Server 串接設定</span>
         <small>LDAP 測試、Winbind 加入網域、FreeRADIUS 串接</small>
@@ -1093,7 +1281,6 @@ function sv_render_form(array $sv = [], array $svColLabels = []): void
 <details class="panel collapsible-panel" id="sv-panel" <?= $editingSv ? 'open' : '' ?>>
     <summary class="panel-summary">
         <span><?= $ic_sql ?>SQL View 串接設定</span>
-        <?php $enabledSvCount = count(array_filter($sqlViews, fn($v) => (bool)$v['enabled'])); ?>
         <small><?= count($sqlViews) ?> 個來源，<?= $enabledSvCount ?> 個已啟用</small>
     </summary>
     <div class="panel-body">
@@ -1168,81 +1355,26 @@ function sv_render_form(array $sv = [], array $svColLabels = []): void
     </div>
 </details>
 
-<details class="panel collapsible-panel">
-    <summary class="panel-summary">
-        <span><?= $ic_globe ?>申請帳號開放允許的網域清單</span>
-        <small>新增、停用或刪除可申請網域</small>
-    </summary>
-    <div class="panel-body">
-    <form method="post" style="display:grid;grid-template-columns:minmax(200px,1fr) 120px auto;gap:12px;align-items:end;margin-bottom:18px;">
-        <?= csrf_field() ?>
-        <input type="hidden" name="action" value="add_allowed_domain">
-        <label>
-            <span>允許 Google Email 網域</span>
-            <input name="domain" required maxlength="190" placeholder="例如 gmail.com">
-        </label>
-        <label>
-            <span>最長期限（月）</span>
-            <input type="number" name="max_months" value="12" min="1" max="120" required>
-        </label>
-        <button type="submit" class="primary">加入網域</button>
-    </form>
-    <div class="table-wrap">
-        <table>
-            <thead><tr><th>網域</th><th>狀態</th><th>最長申請期限</th><th>建立者</th><th>建立時間</th><th>管理</th></tr></thead>
-            <tbody>
-            <?php foreach ($domains as $item): ?>
-                <tr>
-                    <td><code><?= e($item['domain']) ?></code></td>
-                    <td><?= (int) $item['enabled'] === 1
-                        ? '<span class="badge-active">允許</span>'
-                        : '<span class="badge-inactive">停用</span>' ?></td>
-                    <td>
-                        <form method="post" style="display:inline-flex;gap:6px;align-items:center;">
-                            <?= csrf_field() ?>
-                            <input type="hidden" name="action" value="update_domain_max_months">
-                            <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
-                            <input type="number" name="max_months" value="<?= (int) ($item['max_months'] ?? 12) ?>" min="1" max="120" style="width:72px;padding:6px 8px;">
-                            <span style="color:#5b6778;white-space:nowrap;">個月</span>
-                            <button type="submit" class="secondary" style="padding:6px 10px;font-size:13px;white-space:nowrap;">更新</button>
-                        </form>
-                    </td>
-                    <td><?= e($item['created_by']) ?></td>
-                    <td><?= e($item['created_at']) ?></td>
-                    <td>
-                        <div class="inline-actions">
-                        <?php if ((int) $item['enabled'] === 1): ?>
-                            <form method="post" onsubmit="return confirm('確定要停用此允許網域？停用後此網域無法提出新申請。');">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="action" value="remove_allowed_domain">
-                                <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
-                                <button class="secondary" type="submit">停用</button>
-                            </form>
-                        <?php else: ?>
-                            <form method="post">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="action" value="enable_allowed_domain">
-                                <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
-                                <button class="secondary" type="submit">啟用</button>
-                            </form>
-                        <?php endif; ?>
-                            <form method="post" onsubmit="return confirm('確定要刪除此允許網域？刪除後若需要使用必須重新加入。');">
-                                <?= csrf_field() ?>
-                                <input type="hidden" name="action" value="delete_allowed_domain">
-                                <input type="hidden" name="id" value="<?= (int) $item['id'] ?>">
-                                <button class="danger" type="submit">刪除</button>
-                            </form>
-                        </div>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-            </tbody>
-        </table>
-    </div>
-    </div>
-</details>
 <script>
 (function () {
+    function openSettingsTarget(hash) {
+        if (!hash || hash.length < 2) return;
+        var target = document.querySelector(hash);
+        if (target && target.tagName === 'DETAILS') {
+            target.open = true;
+        }
+    }
+
+    document.querySelectorAll('[data-settings-target]').forEach(function (link) {
+        link.addEventListener('click', function () {
+            openSettingsTarget(link.getAttribute('data-settings-target'));
+        });
+    });
+    openSettingsTarget(window.location.hash);
+    window.addEventListener('hashchange', function () {
+        openSettingsTarget(window.location.hash);
+    });
+
     function populateSelects(form, cols) {
         form.querySelectorAll('.sv-col-sel').forEach(function (sel) {
             var saved   = sel.dataset.saved || '';
