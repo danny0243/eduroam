@@ -1222,6 +1222,57 @@ button:disabled {
     padding: 6px 10px;
 }
 
+.ssl-summary-grid {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+}
+
+.ssl-summary-grid > div {
+    background: #fbfcfe;
+    border: 1px solid #e3e8ef;
+    border-radius: 8px;
+    display: grid;
+    gap: 5px;
+    padding: 14px;
+}
+
+.ssl-summary-grid span,
+.ssl-fingerprint span {
+    color: #6b7787;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.ssl-summary-grid strong {
+    overflow-wrap: anywhere;
+}
+
+.ssl-fingerprint {
+    background: #fbfcfe;
+    border: 1px solid #e3e8ef;
+    border-radius: 8px;
+    display: grid;
+    gap: 8px;
+    margin: 14px 0 0;
+    padding: 14px;
+}
+
+.ssl-fingerprint code {
+    overflow-wrap: anywhere;
+}
+
+.ssl-upload-form small {
+    display: block;
+    margin-top: 6px;
+}
+
+.ssl-warning {
+    align-items: flex-start;
+    display: grid;
+    grid-template-columns: auto 1fr;
+}
+
 .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -1734,6 +1785,10 @@ th {
 
     .mui-section-title {
         align-items: flex-start;
+    }
+
+    .ssl-warning {
+        grid-template-columns: 1fr;
     }
 
     .reject-form,

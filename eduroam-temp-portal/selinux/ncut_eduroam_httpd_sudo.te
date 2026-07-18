@@ -3,9 +3,14 @@ module ncut_eduroam_httpd_sudo 1.0;
 require {
     type httpd_t;
     type bin_t;
+    type cert_t;
+    type httpd_config_t;
+    type httpd_exec_t;
+    type httpd_unit_file_t;
     type radiusd_etc_t;
     type radiusd_exec_t;
     type radiusd_unit_file_t;
+    type setfiles_exec_t;
     type systemd_systemctl_exec_t;
     class capability { audit_write chown dac_override dac_read_search fowner sys_resource };
     class dir { add_name getattr read remove_name search write };
@@ -34,3 +39,13 @@ allow httpd_t bin_t:file { execute execute_no_trans getattr map open read };
 allow httpd_t radiusd_exec_t:file { execute execute_no_trans getattr map open read };
 allow httpd_t radiusd_unit_file_t:service { reload start status stop };
 allow httpd_t systemd_systemctl_exec_t:file { execute execute_no_trans getattr map open read };
+
+# The SSL helper installs Apache certificate material and reloads httpd after
+# validating the updated configuration.
+allow httpd_t cert_t:dir { add_name getattr read remove_name search write };
+allow httpd_t cert_t:file { create getattr lock open read rename setattr unlink write };
+allow httpd_t httpd_config_t:dir { getattr read search };
+allow httpd_t httpd_config_t:file { getattr open read };
+allow httpd_t httpd_exec_t:file { execute execute_no_trans getattr map open read };
+allow httpd_t httpd_unit_file_t:service { reload status };
+allow httpd_t setfiles_exec_t:file { execute execute_no_trans getattr map open read };

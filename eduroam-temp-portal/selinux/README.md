@@ -14,8 +14,9 @@ semodule_package -o ncut_eduroam_httpd_sudo.pp -m ncut_eduroam_httpd_sudo.mod
 sudo semodule -i ncut_eduroam_httpd_sudo.pp
 ```
 
-The matching sudoers file is:
+Matching sudoers files include:
 
 ```text
 /etc/sudoers.d/ncut-eduroam-roaming-blocklist
+/etc/sudoers.d/ncut-eduroam-ssl-certificate
 ```

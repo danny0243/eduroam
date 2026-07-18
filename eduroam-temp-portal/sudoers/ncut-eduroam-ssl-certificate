@@ -1,0 +1,4 @@
+Cmnd_Alias NCUT_EDUROAM_SSL_CERT = /usr/bin/php /var/www/eduroam-portal/bin/install-ssl-certificate.php
+Defaults!NCUT_EDUROAM_SSL_CERT !pam_acct_mgmt, !pam_session
+apache ALL=(root) NOPASSWD: NCUT_EDUROAM_SSL_CERT
+nginx ALL=(root) NOPASSWD: NCUT_EDUROAM_SSL_CERT
