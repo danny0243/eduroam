@@ -525,6 +525,228 @@ button:disabled {
     padding: 10px 14px;
 }
 
+.admin-dashboard-head {
+    align-items: flex-start;
+}
+
+.dashboard-metrics {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    margin-top: 22px;
+}
+
+.metric-card {
+    background: #ffffff;
+    border: 1px solid #dbe2ea;
+    border-radius: 8px;
+    color: #1d2635;
+    display: grid;
+    gap: 8px;
+    min-height: 132px;
+    padding: 18px;
+}
+
+.metric-card:hover {
+    border-color: #9bb7d8;
+    box-shadow: 0 10px 24px rgba(29, 38, 53, .08);
+}
+
+.metric-card span {
+    color: #5b6778;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.metric-card strong {
+    font-size: 34px;
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+}
+
+.metric-card small {
+    color: #6b7787;
+    line-height: 1.35;
+}
+
+.resource-grid,
+.dashboard-columns {
+    display: grid;
+    gap: 16px;
+}
+
+.resource-grid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+.dashboard-columns {
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+}
+
+.dashboard-panel {
+    align-self: stretch;
+}
+
+.resource-card {
+    background: #fbfcfe;
+    border: 1px solid #dbe2ea;
+    border-radius: 8px;
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+}
+
+.resource-card-head,
+.service-pill {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+}
+
+.resource-card h3 {
+    margin: 0;
+}
+
+.resource-value {
+    align-items: baseline;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.resource-value small {
+    color: #6b7787;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.resource-meter {
+    background: #e8edf3;
+    border-radius: 999px;
+    height: 11px;
+    overflow: hidden;
+    width: 100%;
+}
+
+.resource-meter.slim {
+    height: 7px;
+    margin-top: 7px;
+    max-width: 180px;
+}
+
+.resource-meter span {
+    background: linear-gradient(90deg, #1476c9, #10a37f);
+    border-radius: inherit;
+    display: block;
+    height: 100%;
+    min-width: 3px;
+}
+
+.resource-meter.warning span {
+    background: linear-gradient(90deg, #d68224, #e4a83a);
+}
+
+.resource-meter.critical span {
+    background: linear-gradient(90deg, #c7392f, #e06455);
+}
+
+.resource-meter.unknown span {
+    background: #8ea0b5;
+}
+
+.resource-kv {
+    display: grid;
+    gap: 7px 12px;
+    grid-template-columns: minmax(88px, .5fr) 1fr;
+    margin: 0;
+}
+
+.resource-kv dt {
+    color: #6b7787;
+}
+
+.resource-kv dd {
+    margin: 0;
+    text-align: right;
+}
+
+.resource-table table {
+    min-width: 760px;
+}
+
+.service-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+}
+
+.service-pill {
+    background: #f6f8fb;
+    border: 1px solid #dbe2ea;
+    border-left: 4px solid #8ea0b5;
+    border-radius: 8px;
+    padding: 12px 14px;
+}
+
+.service-pill.ok {
+    border-left-color: #15935b;
+}
+
+.service-pill.warning {
+    border-left-color: #d68224;
+}
+
+.service-pill.critical {
+    border-left-color: #c7392f;
+}
+
+.service-pill span {
+    color: #5b6778;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.dashboard-mini-stats {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.dashboard-mini-stats a {
+    background: #fbfcfe;
+    border: 1px solid #dbe2ea;
+    border-radius: 8px;
+    color: #1d2635;
+    display: grid;
+    gap: 4px;
+    min-height: 86px;
+    padding: 14px;
+}
+
+.dashboard-mini-stats a:hover {
+    border-color: #9bb7d8;
+}
+
+.dashboard-mini-stats strong {
+    font-size: 24px;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+}
+
+.dashboard-mini-stats span {
+    color: #6b7787;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.dashboard-table table {
+    min-width: 880px;
+}
+
 .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -996,6 +1218,18 @@ th {
 
     .form-grid {
         grid-template-columns: 1fr;
+    }
+
+    .dashboard-metrics,
+    .dashboard-columns,
+    .resource-grid,
+    .dashboard-mini-stats {
+        grid-template-columns: 1fr;
+    }
+
+    .metric-card,
+    .dashboard-mini-stats a {
+        min-height: auto;
     }
 
     .reject-form,

@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->prepare('UPDATE guest_account_admins SET last_login_at = NOW(), updated_at = NOW() WHERE id = ?')
                     ->execute([$adminId]);
                 flash('success', 'Google 登入成功（管理者）。');
-                redirect('/admin.php');
+                redirect(ADMIN_HOME_PATH);
             }
 
             if (!email_domain_allowed($pdo, $googleUser['email'])) {

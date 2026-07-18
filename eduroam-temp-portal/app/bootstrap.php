@@ -25,6 +25,7 @@ if (PHP_SAPI !== 'cli' && session_status() !== PHP_SESSION_ACTIVE) {
 }
 
 const APP_NAME = 'NCUT eduroam 臨時帳號申請系統';
+const ADMIN_HOME_PATH = '/admin-dashboard.php';
 const DALO_CONFIG_PATH = '/var/www/daloradius/app/common/includes/daloradius.conf.php';
 const FIREBASE_PROJECT_ID = 'ncutcc-cd082';
 const FIREBASE_CERTS_URL = 'https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com';
@@ -184,7 +185,7 @@ function local_redirect_path(string $path): string
 {
     $path = trim($path);
     if ($path === '' || $path[0] !== '/' || str_starts_with($path, '//') || str_contains($path, "\r") || str_contains($path, "\n")) {
-        return '/admin.php';
+        return ADMIN_HOME_PATH;
     }
     return $path;
 }
@@ -196,7 +197,7 @@ function remember_admin_return_to(string $path): void
 
 function consume_admin_return_to(): string
 {
-    $path = local_redirect_path((string) ($_SESSION['admin_after_login'] ?? '/admin.php'));
+    $path = local_redirect_path((string) ($_SESSION['admin_after_login'] ?? ADMIN_HOME_PATH));
     unset($_SESSION['admin_after_login']);
     return $path;
 }
@@ -1442,6 +1443,210 @@ function human_duration(int $seconds): string
     return $seconds . '秒';
 }
 
+function dashboard_percent(float $value): float
+{
+    return round(max(0.0, min(100.0, $value)), 1);
+}
+
+function dashboard_level(?float $percent): string
+{
+    if ($percent === null) {
+        return 'unknown';
+    }
+    if ($percent >= 90.0) {
+        return 'critical';
+    }
+    if ($percent >= 80.0) {
+        return 'warning';
+    }
+    return 'ok';
+}
+
+function dashboard_request_summary(PDO $pdo): array
+{
+    $stmt = $pdo->query(
+        'SELECT
+            (SELECT COUNT(*) FROM guest_account_requests WHERE status = "pending") AS pending_requests,
+            (SELECT COUNT(*) FROM guest_account_extension_requests WHERE status = "pending") AS pending_extensions,
+            (SELECT COUNT(*) FROM guest_account_requests WHERE status = "approved") AS approved_accounts,
+            (SELECT COUNT(*) FROM guest_account_requests WHERE status = "disabled") AS disabled_accounts,
+            (SELECT COUNT(*) FROM guest_account_requests
+             WHERE status = "approved"
+               AND expires_at IS NOT NULL
+               AND expires_at >= NOW()
+               AND expires_at < DATE_ADD(NOW(), INTERVAL 7 DAY)) AS expiring_soon,
+            (SELECT COUNT(*) FROM guest_account_requests
+             WHERE status = "approved"
+               AND expires_at IS NOT NULL
+               AND expires_at < NOW()) AS expired_accounts'
+    );
+    $row = $stmt->fetch() ?: [];
+    return [
+        'pending_requests' => (int) ($row['pending_requests'] ?? 0),
+        'pending_extensions' => (int) ($row['pending_extensions'] ?? 0),
+        'approved_accounts' => (int) ($row['approved_accounts'] ?? 0),
+        'disabled_accounts' => (int) ($row['disabled_accounts'] ?? 0),
+        'expiring_soon' => (int) ($row['expiring_soon'] ?? 0),
+        'expired_accounts' => (int) ($row['expired_accounts'] ?? 0),
+    ];
+}
+
+function dashboard_recent_requests(PDO $pdo, int $limit = 8): array
+{
+    $limit = max(3, min($limit, 20));
+    return $pdo->query(
+        "SELECT id, request_code, applicant_name, applicant_email, requested_username, radius_username,
+                status, desired_start, desired_end, starts_at, expires_at, created_at, updated_at
+         FROM guest_account_requests
+         ORDER BY updated_at DESC, id DESC
+         LIMIT {$limit}"
+    )->fetchAll();
+}
+
+function dashboard_auth_outcome_summary(PDO $pdo, int $hours = 24): array
+{
+    $hours = max(1, min($hours, 720));
+    $stmt = $pdo->query(
+        "SELECT
+            COUNT(*) AS total_count,
+            SUM(CASE WHEN reply = 'Access-Accept' THEN 1 ELSE 0 END) AS accept_count,
+            SUM(CASE WHEN reply <> 'Access-Accept' THEN 1 ELSE 0 END) AS reject_count,
+            MAX(authdate) AS last_authdate
+         FROM radpostauth
+         WHERE authdate >= DATE_SUB(NOW(6), INTERVAL {$hours} HOUR)"
+    );
+    $row = $stmt->fetch() ?: [];
+    return [
+        'total_count' => (int) ($row['total_count'] ?? 0),
+        'accept_count' => (int) ($row['accept_count'] ?? 0),
+        'reject_count' => (int) ($row['reject_count'] ?? 0),
+        'last_authdate' => $row['last_authdate'] ?? null,
+    ];
+}
+
+function dashboard_memory_usage(): array
+{
+    $values = [];
+    if (is_readable('/proc/meminfo')) {
+        foreach (file('/proc/meminfo', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [] as $line) {
+            if (preg_match('/^([A-Za-z_()]+):\s+(\d+)\s+kB$/', $line, $matches)) {
+                $values[$matches[1]] = (int) $matches[2] * 1024;
+            }
+        }
+    }
+
+    $total = (int) ($values['MemTotal'] ?? 0);
+    $available = (int) ($values['MemAvailable'] ?? (($values['MemFree'] ?? 0) + ($values['Buffers'] ?? 0) + ($values['Cached'] ?? 0)));
+    $used = max(0, $total - $available);
+    $percent = $total > 0 ? dashboard_percent($used * 100 / $total) : null;
+
+    return [
+        'total_bytes' => $total,
+        'available_bytes' => $available,
+        'used_bytes' => $used,
+        'used_percent' => $percent,
+        'level' => dashboard_level($percent),
+    ];
+}
+
+function dashboard_cpu_load(): array
+{
+    $loads = function_exists('sys_getloadavg') ? sys_getloadavg() : false;
+    if (!is_array($loads)) {
+        $loads = [0.0, 0.0, 0.0];
+    }
+
+    $cpuCount = 0;
+    if (is_readable('/proc/cpuinfo')) {
+        $cpuInfo = (string) file_get_contents('/proc/cpuinfo');
+        $cpuCount = preg_match_all('/^processor\s*:/m', $cpuInfo) ?: 0;
+    }
+    $cpuCount = max(1, (int) $cpuCount);
+    $load1 = (float) ($loads[0] ?? 0.0);
+    $percent = dashboard_percent($load1 * 100 / $cpuCount);
+
+    return [
+        'load1' => round($load1, 2),
+        'load5' => round((float) ($loads[1] ?? 0.0), 2),
+        'load15' => round((float) ($loads[2] ?? 0.0), 2),
+        'cpu_count' => $cpuCount,
+        'load_percent' => $percent,
+        'level' => dashboard_level($percent),
+    ];
+}
+
+function dashboard_disk_usage(array $paths = []): array
+{
+    $paths = $paths ?: ['/', '/var', '/var/log', '/var/www', '/etc/raddb'];
+    $items = [];
+    foreach ($paths as $path) {
+        $path = (string) $path;
+        if ($path === '' || !is_dir($path)) {
+            continue;
+        }
+        $total = @disk_total_space($path);
+        $free = @disk_free_space($path);
+        if (!is_numeric($total) || !is_numeric($free) || (float) $total <= 0) {
+            continue;
+        }
+        $totalBytes = (int) $total;
+        $freeBytes = (int) $free;
+        $usedBytes = max(0, $totalBytes - $freeBytes);
+        $percent = dashboard_percent($usedBytes * 100 / $totalBytes);
+        $items[] = [
+            'path' => $path,
+            'total_bytes' => $totalBytes,
+            'free_bytes' => $freeBytes,
+            'used_bytes' => $usedBytes,
+            'used_percent' => $percent,
+            'level' => dashboard_level($percent),
+        ];
+    }
+    return $items;
+}
+
+function dashboard_service_status(array $services = []): array
+{
+    $services = $services ?: ['httpd', 'php-fpm', 'radiusd', 'mariadb'];
+    $systemctl = is_executable('/usr/bin/systemctl') ? '/usr/bin/systemctl' : '/bin/systemctl';
+    $items = [];
+    foreach ($services as $service) {
+        $service = (string) $service;
+        if (!preg_match('/^[A-Za-z0-9_.@-]+$/', $service) || !is_executable($systemctl) || !function_exists('proc_open')) {
+            $items[] = ['name' => $service, 'status' => 'unknown', 'level' => 'unknown'];
+            continue;
+        }
+
+        $cmd = escapeshellarg($systemctl) . ' is-active ' . escapeshellarg($service);
+        $descriptors = [
+            1 => ['pipe', 'w'],
+            2 => ['pipe', 'w'],
+        ];
+        $process = @proc_open($cmd, $descriptors, $pipes);
+        if (!is_resource($process)) {
+            $items[] = ['name' => $service, 'status' => 'unknown', 'level' => 'unknown'];
+            continue;
+        }
+        $stdout = trim((string) stream_get_contents($pipes[1]));
+        fclose($pipes[1]);
+        $stderr = trim((string) stream_get_contents($pipes[2]));
+        fclose($pipes[2]);
+        $exitCode = proc_close($process);
+        $status = $stdout !== '' ? $stdout : ($stderr !== '' ? $stderr : 'unknown');
+        if ($exitCode !== 0 && $status === 'unknown') {
+            $status = 'inactive';
+        }
+        $level = match ($status) {
+            'active' => 'ok',
+            'activating', 'deactivating' => 'warning',
+            'inactive', 'failed' => 'critical',
+            default => 'unknown',
+        };
+        $items[] = ['name' => $service, 'status' => $status, 'level' => $level];
+    }
+    return $items;
+}
+
 function auth_attempt_condition(string $type): string
 {
     return radius_identity_source_condition($type, 'rp');
@@ -2126,7 +2331,7 @@ function render_header(string $title, bool $isAdmin = false): void
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title) ?></title>
-    <link rel="stylesheet" href="/assets/styles.css?v=20260718-auth-usage">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260718-dashboard">
 </head>
 <body>
 <header class="topbar">
@@ -2139,6 +2344,7 @@ function render_header(string $title, bool $isAdmin = false): void
             <?php nav_link('/', '申請帳號'); ?>
         <?php endif; ?>
         <?php if ($admin): ?>
+            <?php nav_link('/admin-dashboard.php', 'Dashboard'); ?>
             <?php nav_link('/admin.php', '帳號管理'); ?>
             <details class="nav-menu <?= nav_active(['/admin-auth-logs.php', '/admin-auth-log-detail.php', '/admin-online-users.php', '/admin-usage-analytics.php', '/admin-roaming-blocklist.php']) ? 'active' : '' ?>">
                 <summary>認證與安全</summary>
