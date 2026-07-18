@@ -983,10 +983,22 @@ function remove_allowed_domain(PDO $pdo, array $admin): void
     flash('success', "已移除允許申請網域 {$domain}。");
 }
 
+function admin_view_for_action(string $action): string
+{
+    return match ($action) {
+        'create_account' => 'create',
+        'import_accounts', 'import_sql_view_accounts' => 'import',
+        'disable', 'enable', 'delete', 'reset_password', 'extend' => 'accounts',
+        'disable_closed_request', 'delete_closed_request' => 'closed',
+        'approve', 'reject', 'approve_extension', 'reject_extension' => 'queue',
+        default => 'queue',
+    };
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = (string) ($_POST['action'] ?? '');
     try {
         verify_csrf();
-        $action = (string) ($_POST['action'] ?? '');
 
         if ($action === 'login') {
             security_audit($pdo, 'admin_password_login_blocked', 'blocked legacy password login attempt');
@@ -1055,10 +1067,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'reject_extension' => reject_extension_request($pdo, $admin),
             default => throw new RuntimeException('未知的管理動作。'),
         };
-        redirect('/admin.php');
+        redirect('/admin.php?view=' . admin_view_for_action($action));
     } catch (Throwable $e) {
         flash('error', $e->getMessage());
-        redirect('/admin.php');
+        redirect('/admin.php?view=' . admin_view_for_action($action));
     }
 }
 
@@ -1164,6 +1176,17 @@ $sqlViews = sql_view_list($pdo);
 $enabledSvCount = count(array_filter($sqlViews, static fn($v) => (bool) $v['enabled']));
 $defaultStarts = (new DateTimeImmutable('now', new DateTimeZone('Asia/Taipei')))->format('Y-m-d\TH:i');
 $defaultExpires = (new DateTimeImmutable('+7 days', new DateTimeZone('Asia/Taipei')))->format('Y-m-d\TH:i');
+$adminViews = [
+    'queue' => ['label' => '待處理', 'count' => count($pending) + count($pendingExtensions)],
+    'accounts' => ['label' => '已開通帳號', 'count' => count($managed)],
+    'create' => ['label' => '手動新增', 'count' => null],
+    'import' => ['label' => '批次匯入', 'count' => null],
+    'closed' => ['label' => '歷史紀錄', 'count' => count($closed)],
+];
+$view = (string) ($_GET['view'] ?? 'queue');
+if (!array_key_exists($view, $adminViews)) {
+    $view = 'queue';
+}
 ?>
 <section class="dashboard-head">
     <div>
@@ -1177,6 +1200,18 @@ $defaultExpires = (new DateTimeImmutable('+7 days', new DateTimeZone('Asia/Taipe
     </div>
 </section>
 
+<nav class="tabbar admin-workspace-tabs" aria-label="臨時帳號管理工作區">
+    <?php foreach ($adminViews as $key => $item): ?>
+        <a class="<?= $key === $view ? 'active' : '' ?>" href="<?= e('/admin.php?' . http_build_query(['view' => $key])) ?>">
+            <span><?= e($item['label']) ?></span>
+            <?php if ($item['count'] !== null): ?>
+                <strong><?= (int) $item['count'] ?></strong>
+            <?php endif; ?>
+        </a>
+    <?php endforeach; ?>
+</nav>
+
+<?php if ($view === 'create'): ?>
 <section class="panel">
     <h2>新增帳號</h2>
     <form method="post" class="form-grid expires-control">
@@ -1231,7 +1266,9 @@ $defaultExpires = (new DateTimeImmutable('+7 days', new DateTimeZone('Asia/Taipe
         </div>
     </form>
 </section>
+<?php endif; ?>
 
+<?php if ($view === 'import'): ?>
 <section class="panel">
     <div class="section-title-row">
         <div>
@@ -1284,7 +1321,9 @@ $defaultExpires = (new DateTimeImmutable('+7 days', new DateTimeZone('Asia/Taipe
         </div>
     </form>
 </section>
+<?php endif; ?>
 
+<?php if ($view === 'queue'): ?>
 <section class="panel">
     <h2>展延待審</h2>
     <?php if (!$pendingExtensions): ?>
@@ -1405,7 +1444,9 @@ $defaultExpires = (new DateTimeImmutable('+7 days', new DateTimeZone('Asia/Taipe
         </div>
     <?php endif; ?>
 </section>
+<?php endif; ?>
 
+<?php if ($view === 'accounts'): ?>
 <section class="panel">
     <h2>已開通帳號</h2>
     <?php if (!$managed): ?>
@@ -1487,7 +1528,9 @@ $defaultExpires = (new DateTimeImmutable('+7 days', new DateTimeZone('Asia/Taipe
         </div>
     <?php endif; ?>
 </section>
+<?php endif; ?>
 
+<?php if ($view === 'closed'): ?>
 <section class="panel">
     <h2>已退回申請</h2>
     <?php if (!$closed): ?>
@@ -1533,6 +1576,7 @@ $defaultExpires = (new DateTimeImmutable('+7 days', new DateTimeZone('Asia/Taipe
         </div>
     <?php endif; ?>
 </section>
+<?php endif; ?>
 <script>
 document.querySelectorAll(".expires-control").forEach((form) => {
     const checkbox = form.querySelector(".permanent-checkbox");
