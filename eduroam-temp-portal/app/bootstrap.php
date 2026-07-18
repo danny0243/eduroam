@@ -1358,15 +1358,93 @@ function radius_user_exists(PDO $pdo, string $username): bool
     return (int) $stmt->fetchColumn() > 0;
 }
 
-function auth_attempt_condition(string $type): string
+function radius_sql_alias(string $alias): string
 {
-    $local = "(EXISTS (SELECT 1 FROM radcheck rc WHERE rc.username = rp.username) OR LOWER(rp.username) LIKE '%@ncut.edu.tw' OR LOWER(rp.username) LIKE '%@%.ncut.edu.tw')";
+    if (!preg_match('/^[a-z][a-z0-9_]*$/i', $alias)) {
+        throw new RuntimeException('Unsupported SQL alias.');
+    }
+    return $alias;
+}
+
+function radius_identity_source_condition(string $type, string $alias, bool $allowAll = false): string
+{
+    $alias = radius_sql_alias($alias);
+    if ($allowAll && $type === 'all') {
+        return '1=1';
+    }
+    $usernameSql = "CONVERT({$alias}.username USING utf8mb4) COLLATE utf8mb4_unicode_ci";
+    $radcheckUsernameSql = 'CONVERT(rc.username USING utf8mb4) COLLATE utf8mb4_unicode_ci';
+    $local = "(EXISTS (SELECT 1 FROM radcheck rc WHERE {$radcheckUsernameSql} = {$usernameSql}) OR LOWER({$alias}.username) LIKE '%@ncut.edu.tw' OR LOWER({$alias}.username) LIKE '%@%.ncut.edu.tw')";
     return match ($type) {
         'local' => $local,
-        'tanrc' => "rp.username LIKE '%@%' AND NOT {$local}",
-        'no_realm' => "rp.username NOT LIKE '%@%' AND NOT EXISTS (SELECT 1 FROM radcheck rc WHERE rc.username = rp.username)",
+        'tanrc' => "{$alias}.username LIKE '%@%' AND NOT {$local}",
+        'no_realm' => "{$alias}.username NOT LIKE '%@%' AND NOT EXISTS (SELECT 1 FROM radcheck rc WHERE {$radcheckUsernameSql} = {$usernameSql})",
         default => throw new RuntimeException('未知的認證紀錄分類。'),
     };
+}
+
+function radius_identity_source_label_sql(string $alias): string
+{
+    $alias = radius_sql_alias($alias);
+    $usernameSql = "CONVERT({$alias}.username USING utf8mb4) COLLATE utf8mb4_unicode_ci";
+    $radcheckUsernameSql = 'CONVERT(rc.username USING utf8mb4) COLLATE utf8mb4_unicode_ci';
+    return "CASE
+            WHEN EXISTS (SELECT 1 FROM radcheck rc WHERE {$radcheckUsernameSql} = {$usernameSql}) THEN '本機 SQL'
+            WHEN LOWER({$alias}.username) LIKE '%@ncut.edu.tw' OR LOWER({$alias}.username) LIKE '%@%.ncut.edu.tw' THEN '本校 realm'
+            WHEN {$alias}.username LIKE '%@%' THEN 'TANRC 外校'
+            ELSE '未帶 realm'
+        END";
+}
+
+function radius_acct_session_seconds_sql(string $alias): string
+{
+    $alias = radius_sql_alias($alias);
+    return "CASE
+            WHEN COALESCE({$alias}.acctsessiontime, 0) > 0 THEN COALESCE({$alias}.acctsessiontime, 0)
+            ELSE COALESCE(GREATEST(TIMESTAMPDIFF(SECOND, {$alias}.acctstarttime, COALESCE({$alias}.acctstoptime, {$alias}.acctupdatetime, NOW())), 0), 0)
+        END";
+}
+
+function radius_acct_octets_sql(string $alias): string
+{
+    $alias = radius_sql_alias($alias);
+    return "(COALESCE({$alias}.acctinputoctets, 0) + COALESCE({$alias}.acctoutputoctets, 0))";
+}
+
+function human_bytes(int $bytes): string
+{
+    $bytes = max(0, $bytes);
+    $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    $value = (float) $bytes;
+    $unit = 0;
+    while ($value >= 1024 && $unit < count($units) - 1) {
+        $value /= 1024;
+        $unit++;
+    }
+    return number_format($value, $unit === 0 ? 0 : 1) . ' ' . $units[$unit];
+}
+
+function human_duration(int $seconds): string
+{
+    $seconds = max(0, $seconds);
+    $days = intdiv($seconds, 86400);
+    $hours = intdiv($seconds % 86400, 3600);
+    $minutes = intdiv($seconds % 3600, 60);
+    if ($days > 0) {
+        return $days . '天 ' . $hours . '小時';
+    }
+    if ($hours > 0) {
+        return $hours . '小時 ' . $minutes . '分';
+    }
+    if ($minutes > 0) {
+        return $minutes . '分';
+    }
+    return $seconds . '秒';
+}
+
+function auth_attempt_condition(string $type): string
+{
+    return radius_identity_source_condition($type, 'rp');
 }
 
 function table_column_exists(PDO $pdo, string $table, string $column): bool
@@ -1438,13 +1516,190 @@ function auth_attempt_select_sql(PDO $pdo): string
         COALESCE(NULLIF({$calledStation}, ''), " . auth_latest_acct_value('calledstationid') . ") AS calledstationid,
         COALESCE(NULLIF({$callingStation}, ''), " . auth_latest_acct_value('callingstationid') . ") AS callingstationid,
         NULLIF({$packetSource}, '') AS packet_src_ipaddress,
-        CASE
-            WHEN EXISTS (SELECT 1 FROM radcheck rc WHERE rc.username = rp.username) THEN '本機 SQL'
-            WHEN LOWER(rp.username) LIKE '%@ncut.edu.tw' OR LOWER(rp.username) LIKE '%@%.ncut.edu.tw' THEN '本校 realm'
-            WHEN rp.username LIKE '%@%' THEN 'TANRC 外校'
-            ELSE '未帶 realm'
-        END AS source_label
+        " . radius_identity_source_label_sql('rp') . " AS source_label
     ";
+}
+
+function online_radius_summary(PDO $pdo): array
+{
+    $local = radius_identity_source_condition('local', 'ra');
+    $tanrc = radius_identity_source_condition('tanrc', 'ra');
+    $noRealm = radius_identity_source_condition('no_realm', 'ra');
+    $stmt = $pdo->query("
+        SELECT
+            COUNT(*) AS total_count,
+            SUM(CASE WHEN {$local} THEN 1 ELSE 0 END) AS local_count,
+            SUM(CASE WHEN {$tanrc} THEN 1 ELSE 0 END) AS tanrc_count,
+            SUM(CASE WHEN {$noRealm} THEN 1 ELSE 0 END) AS no_realm_count,
+            SUM(CASE WHEN TIMESTAMPDIFF(MINUTE, COALESCE(ra.acctupdatetime, ra.acctstarttime), NOW()) > 30 THEN 1 ELSE 0 END) AS stale_count
+        FROM radacct ra
+        WHERE ra.acctstoptime IS NULL
+    ");
+    $row = $stmt->fetch() ?: [];
+    return [
+        'total_count' => (int) ($row['total_count'] ?? 0),
+        'local_count' => (int) ($row['local_count'] ?? 0),
+        'tanrc_count' => (int) ($row['tanrc_count'] ?? 0),
+        'no_realm_count' => (int) ($row['no_realm_count'] ?? 0),
+        'stale_count' => (int) ($row['stale_count'] ?? 0),
+    ];
+}
+
+function online_radius_sessions(PDO $pdo, string $source = 'all', string $search = '', int $limit = 100): array
+{
+    $limit = max(10, min($limit, 300));
+    $where = [
+        'ra.acctstoptime IS NULL',
+        radius_identity_source_condition($source, 'ra', true),
+    ];
+    $params = [];
+    $search = trim($search);
+    if ($search !== '') {
+        $where[] = '(ra.username LIKE ? OR ra.callingstationid LIKE ? OR ra.calledstationid LIKE ? OR ra.nasipaddress LIKE ? OR ra.framedipaddress LIKE ?)';
+        $term = '%' . $search . '%';
+        array_push($params, $term, $term, $term, $term, $term);
+    }
+
+    $secondsSql = radius_acct_session_seconds_sql('ra');
+    $octetsSql = radius_acct_octets_sql('ra');
+    $labelSql = radius_identity_source_label_sql('ra');
+    $stmt = $pdo->prepare("
+        SELECT
+            ra.radacctid,
+            ra.acctsessionid,
+            ra.username,
+            ra.realm,
+            ra.nasipaddress,
+            ra.nasportid,
+            ra.nasporttype,
+            ra.acctstarttime,
+            ra.acctupdatetime,
+            ra.calledstationid,
+            ra.callingstationid,
+            ra.framedipaddress,
+            ra.framedipv6address,
+            COALESCE(ra.acctinputoctets, 0) AS input_octets,
+            COALESCE(ra.acctoutputoctets, 0) AS output_octets,
+            {$octetsSql} AS total_octets,
+            {$secondsSql} AS live_seconds,
+            COALESCE(TIMESTAMPDIFF(MINUTE, COALESCE(ra.acctupdatetime, ra.acctstarttime), NOW()), 0) AS idle_minutes,
+            {$labelSql} AS source_label,
+            (SELECT rp.id FROM radpostauth rp WHERE rp.username = ra.username ORDER BY rp.authdate DESC LIMIT 1) AS latest_auth_id,
+            (SELECT rp.reply FROM radpostauth rp WHERE rp.username = ra.username ORDER BY rp.authdate DESC LIMIT 1) AS latest_reply
+        FROM radacct ra
+        WHERE " . implode(' AND ', $where) . "
+        ORDER BY COALESCE(ra.acctupdatetime, ra.acctstarttime) DESC
+        LIMIT {$limit}
+    ");
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function radius_usage_summary(PDO $pdo, string $source = 'all', int $days = 30): array
+{
+    $days = max(1, min($days, 365));
+    $secondsSql = radius_acct_session_seconds_sql('ra');
+    $octetsSql = radius_acct_octets_sql('ra');
+    $stmt = $pdo->query("
+        SELECT
+            COUNT(*) AS session_count,
+            COUNT(DISTINCT ra.username) AS user_count,
+            COUNT(DISTINCT NULLIF(ra.callingstationid, '')) AS mac_count,
+            COUNT(DISTINCT NULLIF(ra.nasipaddress, '')) AS nas_count,
+            SUM({$secondsSql}) AS total_seconds,
+            SUM({$octetsSql}) AS total_octets,
+            SUM(CASE WHEN ra.acctstoptime IS NULL THEN 1 ELSE 0 END) AS online_count
+        FROM radacct ra
+        WHERE " . radius_identity_source_condition($source, 'ra', true) . "
+          AND COALESCE(ra.acctupdatetime, ra.acctstoptime, ra.acctstarttime) >= DATE_SUB(NOW(), INTERVAL {$days} DAY)
+    ");
+    $row = $stmt->fetch() ?: [];
+    return [
+        'session_count' => (int) ($row['session_count'] ?? 0),
+        'user_count' => (int) ($row['user_count'] ?? 0),
+        'mac_count' => (int) ($row['mac_count'] ?? 0),
+        'nas_count' => (int) ($row['nas_count'] ?? 0),
+        'total_seconds' => (int) ($row['total_seconds'] ?? 0),
+        'total_octets' => (int) ($row['total_octets'] ?? 0),
+        'online_count' => (int) ($row['online_count'] ?? 0),
+    ];
+}
+
+function radius_usage_top_users(PDO $pdo, string $source = 'all', int $days = 30, string $order = 'traffic', string $search = '', int $limit = 50): array
+{
+    $days = max(1, min($days, 365));
+    $limit = max(10, min($limit, 300));
+    $orderSql = match ($order) {
+        'sessions' => 'session_count DESC, last_seen DESC',
+        'time' => 'total_seconds DESC, last_seen DESC',
+        'last_seen' => 'last_seen DESC',
+        default => 'total_octets DESC, last_seen DESC',
+    };
+    $where = [
+        radius_identity_source_condition($source, 'ra', true),
+        "COALESCE(ra.acctupdatetime, ra.acctstoptime, ra.acctstarttime) >= DATE_SUB(NOW(), INTERVAL {$days} DAY)",
+    ];
+    $params = [];
+    $search = trim($search);
+    if ($search !== '') {
+        $where[] = '(ra.username LIKE ? OR ra.callingstationid LIKE ? OR ra.calledstationid LIKE ? OR ra.nasipaddress LIKE ? OR ra.framedipaddress LIKE ?)';
+        $term = '%' . $search . '%';
+        array_push($params, $term, $term, $term, $term, $term);
+    }
+
+    $secondsSql = radius_acct_session_seconds_sql('ra');
+    $octetsSql = radius_acct_octets_sql('ra');
+    $labelSql = radius_identity_source_label_sql('ra');
+    $stmt = $pdo->prepare("
+        SELECT
+            ra.username,
+            MAX({$labelSql}) AS source_label,
+            COUNT(*) AS session_count,
+            COUNT(DISTINCT NULLIF(ra.callingstationid, '')) AS mac_count,
+            COUNT(DISTINCT NULLIF(ra.nasipaddress, '')) AS nas_count,
+            COUNT(DISTINCT NULLIF(ra.calledstationid, '')) AS ap_count,
+            COUNT(DISTINCT NULLIF(ra.framedipaddress, '')) AS framed_ip_count,
+            SUM({$secondsSql}) AS total_seconds,
+            SUM({$octetsSql}) AS total_octets,
+            MIN(ra.acctstarttime) AS first_seen,
+            MAX(COALESCE(ra.acctupdatetime, ra.acctstoptime, ra.acctstarttime)) AS last_seen,
+            MAX(CASE WHEN ra.acctstoptime IS NULL THEN 1 ELSE 0 END) AS online_now,
+            (SELECT rp.id FROM radpostauth rp WHERE rp.username = ra.username ORDER BY rp.authdate DESC LIMIT 1) AS latest_auth_id
+        FROM radacct ra
+        WHERE " . implode(' AND ', $where) . "
+        GROUP BY ra.username
+        ORDER BY {$orderSql}
+        LIMIT {$limit}
+    ");
+    $stmt->execute($params);
+    return $stmt->fetchAll();
+}
+
+function radius_usage_by_realm(PDO $pdo, string $source = 'all', int $days = 30, int $limit = 30): array
+{
+    $days = max(1, min($days, 365));
+    $limit = max(5, min($limit, 100));
+    $secondsSql = radius_acct_session_seconds_sql('ra');
+    $octetsSql = radius_acct_octets_sql('ra');
+    $stmt = $pdo->query("
+        SELECT
+            CASE
+                WHEN ra.username LIKE '%@%' THEN SUBSTRING_INDEX(LOWER(ra.username), '@', -1)
+                ELSE '(未帶 realm)'
+            END AS realm,
+            COUNT(DISTINCT ra.username) AS user_count,
+            COUNT(*) AS session_count,
+            SUM({$secondsSql}) AS total_seconds,
+            SUM({$octetsSql}) AS total_octets,
+            MAX(COALESCE(ra.acctupdatetime, ra.acctstoptime, ra.acctstarttime)) AS last_seen
+        FROM radacct ra
+        WHERE " . radius_identity_source_condition($source, 'ra', true) . "
+          AND COALESCE(ra.acctupdatetime, ra.acctstoptime, ra.acctstarttime) >= DATE_SUB(NOW(), INTERVAL {$days} DAY)
+        GROUP BY realm
+        ORDER BY total_octets DESC, session_count DESC
+        LIMIT {$limit}
+    ");
+    return $stmt->fetchAll();
 }
 
 function auth_attempts(PDO $pdo, string $type, int $limit = 50): array
@@ -1871,7 +2126,7 @@ function render_header(string $title, bool $isAdmin = false): void
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title) ?></title>
-    <link rel="stylesheet" href="/assets/styles.css?v=20260718-nav-groups">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260718-auth-usage">
 </head>
 <body>
 <header class="topbar">
@@ -1885,10 +2140,12 @@ function render_header(string $title, bool $isAdmin = false): void
         <?php endif; ?>
         <?php if ($admin): ?>
             <?php nav_link('/admin.php', '帳號管理'); ?>
-            <details class="nav-menu <?= nav_active(['/admin-auth-logs.php', '/admin-auth-log-detail.php', '/admin-roaming-blocklist.php']) ? 'active' : '' ?>">
+            <details class="nav-menu <?= nav_active(['/admin-auth-logs.php', '/admin-auth-log-detail.php', '/admin-online-users.php', '/admin-usage-analytics.php', '/admin-roaming-blocklist.php']) ? 'active' : '' ?>">
                 <summary>認證與安全</summary>
                 <div class="nav-menu-panel">
                     <?php nav_link('/admin-auth-logs.php', '認證紀錄', ['/admin-auth-logs.php', '/admin-auth-log-detail.php']); ?>
+                    <?php nav_link('/admin-online-users.php', '線上帳號'); ?>
+                    <?php nav_link('/admin-usage-analytics.php', '用量分析'); ?>
                     <?php nav_link('/admin-roaming-blocklist.php', '外校封鎖管理'); ?>
                 </div>
             </details>

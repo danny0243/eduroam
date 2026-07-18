@@ -58,11 +58,9 @@ render_header('認證紀錄 - ' . APP_NAME, true);
 </section>
 
 <nav class="tabbar auth-tabbar" aria-label="認證紀錄分類">
-    <?php foreach ($types as $key => $item): ?>
-        <a class="<?= $key === $type ? 'active' : '' ?>" href="<?= e('/admin-auth-logs.php?' . http_build_query(['type' => $key, 'limit' => $limit])) ?>">
-            <?= e($item['label']) ?>
-        </a>
-    <?php endforeach; ?>
+    <a class="active" href="<?= e('/admin-auth-logs.php?' . http_build_query(['type' => $type, 'limit' => $limit])) ?>">認證紀錄</a>
+    <a href="/admin-online-users.php">線上帳號</a>
+    <a href="/admin-usage-analytics.php">用量分析</a>
     <a href="/admin-roaming-blocklist.php">外校封鎖管理</a>
 </nav>
 
@@ -73,7 +71,14 @@ render_header('認證紀錄 - ' . APP_NAME, true);
             <p class="muted small"><?= e($active['description']) ?></p>
         </div>
         <form method="get" class="inline-filter">
-            <input type="hidden" name="type" value="<?= e($type) ?>">
+            <label>
+                <span>分類</span>
+                <select name="type" onchange="this.form.submit()">
+                    <?php foreach ($types as $key => $item): ?>
+                        <option value="<?= e($key) ?>" <?= $type === $key ? 'selected' : '' ?>><?= e($item['label']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
             <label>
                 <span>顯示筆數</span>
                 <select name="limit" onchange="this.form.submit()">

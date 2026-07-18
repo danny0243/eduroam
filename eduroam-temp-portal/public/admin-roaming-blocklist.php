@@ -184,9 +184,9 @@ render_header('外校封鎖管理 - ' . APP_NAME, true);
 </section>
 
 <nav class="tabbar auth-tabbar" aria-label="認證與封鎖功能">
-    <a href="/admin-auth-logs.php?type=local">本校紀錄</a>
-    <a href="/admin-auth-logs.php?type=tanrc">TANRC 外校紀錄</a>
-    <a href="/admin-auth-logs.php?type=no_realm">未帶 realm</a>
+    <a href="/admin-auth-logs.php?type=local">認證紀錄</a>
+    <a href="/admin-online-users.php">線上帳號</a>
+    <a href="/admin-usage-analytics.php">用量分析</a>
     <a class="active" href="/admin-roaming-blocklist.php">外校封鎖管理</a>
 </nav>
 

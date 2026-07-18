@@ -597,6 +597,33 @@ button:disabled {
     min-width: 760px;
 }
 
+.online-session-table table,
+.usage-analysis-table table {
+    min-width: 1180px;
+}
+
+.usage-meter {
+    background: #e8edf3;
+    border-radius: 999px;
+    height: 8px;
+    margin-top: 7px;
+    overflow: hidden;
+    width: 150px;
+}
+
+.usage-meter span {
+    background: linear-gradient(90deg, #1476c9, #10a37f);
+    border-radius: inherit;
+    display: block;
+    height: 100%;
+    min-width: 3px;
+}
+
+.nowrap {
+    display: inline-block;
+    white-space: nowrap;
+}
+
 .request-card {
     border: 1px solid #dbe2ea;
     border-radius: 8px;
