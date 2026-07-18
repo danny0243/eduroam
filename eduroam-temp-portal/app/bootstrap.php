@@ -1839,6 +1839,24 @@ function generate_guest_username(PDO $pdo): string
     throw new RuntimeException('無法產生可用的臨時帳號，請手動指定帳號。');
 }
 
+function nav_path(): string
+{
+    return (string) (parse_url((string) ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/');
+}
+
+function nav_active(array $paths): bool
+{
+    $current = nav_path();
+    return in_array($current, $paths, true);
+}
+
+function nav_link(string $href, string $label, array $activePaths = []): void
+{
+    $paths = $activePaths ?: [$href];
+    $active = nav_active($paths) ? ' class="active"' : '';
+    echo '<a' . $active . ' href="' . e($href) . '">' . e($label) . '</a>';
+}
+
 function render_header(string $title, bool $isAdmin = false): void
 {
     $admin = admin_user();
@@ -1853,7 +1871,7 @@ function render_header(string $title, bool $isAdmin = false): void
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= e($title) ?></title>
-    <link rel="stylesheet" href="/assets/styles.css?v=20260718-roaming-blocklist">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260718-nav-groups">
 </head>
 <body>
 <header class="topbar">
@@ -1863,14 +1881,24 @@ function render_header(string $title, bool $isAdmin = false): void
     </div>
     <nav>
         <?php if (google_applicant()): ?>
-            <a href="/">申請帳號</a>
+            <?php nav_link('/', '申請帳號'); ?>
         <?php endif; ?>
         <?php if ($admin): ?>
-            <a href="/admin.php">臨時帳號管理</a>
-            <a href="/admin-auth-logs.php">認證紀錄</a>
-            <a href="/admin-roaming-blocklist.php">外校封鎖管理</a>
-            <a href="/admin-radius-proxy.php">RADIUS Proxy</a>
-            <a href="/admin-settings.php">系統設定</a>
+            <?php nav_link('/admin.php', '帳號管理'); ?>
+            <details class="nav-menu <?= nav_active(['/admin-auth-logs.php', '/admin-auth-log-detail.php', '/admin-roaming-blocklist.php']) ? 'active' : '' ?>">
+                <summary>認證與安全</summary>
+                <div class="nav-menu-panel">
+                    <?php nav_link('/admin-auth-logs.php', '認證紀錄', ['/admin-auth-logs.php', '/admin-auth-log-detail.php']); ?>
+                    <?php nav_link('/admin-roaming-blocklist.php', '外校封鎖管理'); ?>
+                </div>
+            </details>
+            <details class="nav-menu <?= nav_active(['/admin-radius-proxy.php', '/admin-settings.php']) ? 'active' : '' ?>">
+                <summary>系統管理</summary>
+                <div class="nav-menu-panel">
+                    <?php nav_link('/admin-radius-proxy.php', 'RADIUS Proxy'); ?>
+                    <?php nav_link('/admin-settings.php', '系統設定'); ?>
+                </div>
+            </details>
             <form method="post" action="/admin.php" class="inline-form">
                 <?= csrf_field() ?>
                 <input type="hidden" name="action" value="logout">

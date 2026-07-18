@@ -58,8 +58,82 @@ code {
 .topbar nav {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 8px;
     flex-wrap: wrap;
+}
+
+.topbar nav > a,
+.nav-menu summary,
+.link-button {
+    border-radius: 6px;
+    color: #334155;
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 7px 10px;
+    font-weight: 700;
+}
+
+.topbar nav > a:hover,
+.nav-menu summary:hover,
+.link-button:hover,
+.topbar nav > a.active,
+.nav-menu.active summary {
+    background: #edf4fb;
+    color: #075aa5;
+}
+
+.nav-menu {
+    position: relative;
+}
+
+.nav-menu summary {
+    cursor: pointer;
+    list-style: none;
+}
+
+.nav-menu summary::-webkit-details-marker {
+    display: none;
+}
+
+.nav-menu summary::after {
+    content: "";
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid currentColor;
+    margin-left: 8px;
+}
+
+.nav-menu-panel {
+    background: #ffffff;
+    border: 1px solid #dbe2ea;
+    border-radius: 8px;
+    box-shadow: 0 14px 36px rgba(15, 23, 42, .12);
+    display: grid;
+    gap: 4px;
+    min-width: 180px;
+    padding: 8px;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 8px);
+    z-index: 20;
+}
+
+.nav-menu-panel a {
+    border-radius: 6px;
+    color: #334155;
+    padding: 8px 10px;
+    white-space: nowrap;
+}
+
+.nav-menu-panel a:hover,
+.nav-menu-panel a.active {
+    background: #edf4fb;
+    color: #075aa5;
+}
+
+.topbar .inline-form {
+    margin-left: 4px;
 }
 
 .container {
@@ -378,6 +452,18 @@ button:disabled {
     background: transparent;
     color: #0a66c2;
     padding: 0;
+}
+
+.topbar .link-button {
+    border-radius: 6px;
+    color: #334155;
+    min-height: 36px;
+    padding: 7px 10px;
+}
+
+.topbar .link-button:hover {
+    background: #edf4fb;
+    color: #075aa5;
 }
 
 .inline-form {
@@ -805,6 +891,35 @@ th {
     .notice {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .topbar nav {
+        align-items: stretch;
+        display: grid;
+        gap: 8px;
+        grid-template-columns: 1fr;
+    }
+
+    .topbar nav > a,
+    .nav-menu summary,
+    .topbar .link-button {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .nav-menu {
+        width: 100%;
+    }
+
+    .nav-menu-panel {
+        box-shadow: none;
+        margin-top: 6px;
+        position: static;
+        width: 100%;
+    }
+
+    .topbar .inline-form {
+        margin-left: 0;
     }
 
     .hero {
