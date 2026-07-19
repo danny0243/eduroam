@@ -5,6 +5,20 @@ const SSL_CERT_PATH = '/etc/pki/tls/certs/eduroam.ncut.edu.tw-fullchain.pem';
 const SSL_KEY_PATH = '/etc/pki/tls/private/eduroam.ncut.edu.tw.key';
 const SSL_DOMAIN = 'eduroam.ncut.edu.tw';
 const MAX_PEM_BYTES = 262144;
+const MANAGED_SSL_ENDPOINTS = [
+    [
+        'name' => 'eduroam portal',
+        'url' => 'https://eduroam.ncut.edu.tw/',
+        'port' => 443,
+        'config' => '/etc/httpd/conf.d/eduroam-portal.conf',
+    ],
+    [
+        'name' => 'daloRADIUS WebUI',
+        'url' => 'https://eduroam.ncut.edu.tw:8443/',
+        'port' => 8443,
+        'config' => '/etc/httpd/conf.d/daloradius.conf',
+    ],
+];
 
 function require_root(): void
 {
@@ -175,6 +189,38 @@ function normalize_private_key(string $privateKey, string $passphrase): string
     return trim($exported) . "\n";
 }
 
+function verify_managed_ssl_endpoints(): array
+{
+    $verified = [];
+    foreach (MANAGED_SSL_ENDPOINTS as $endpoint) {
+        $config = (string) $endpoint['config'];
+        if (!is_readable($config)) {
+            throw new RuntimeException('Managed SSL endpoint config is not readable: ' . $config);
+        }
+        $content = (string) file_get_contents($config);
+        $port = (int) $endpoint['port'];
+        if (!preg_match('/<VirtualHost\s+[^>]*:' . preg_quote((string) $port, '/') . '\s*>/i', $content)) {
+            throw new RuntimeException('Managed SSL endpoint is missing VirtualHost :' . $port . ' in ' . $config);
+        }
+        if (!preg_match('/^\s*ServerName\s+' . preg_quote(SSL_DOMAIN, '/') . '\b/mi', $content)) {
+            throw new RuntimeException('Managed SSL endpoint is missing ServerName ' . SSL_DOMAIN . ' in ' . $config);
+        }
+        if (!preg_match('/^\s*SSLCertificateFile\s+' . preg_quote(SSL_CERT_PATH, '/') . '\s*$/mi', $content)) {
+            throw new RuntimeException('Managed SSL endpoint does not use the managed certificate file: ' . $config);
+        }
+        if (!preg_match('/^\s*SSLCertificateKeyFile\s+' . preg_quote(SSL_KEY_PATH, '/') . '\s*$/mi', $content)) {
+            throw new RuntimeException('Managed SSL endpoint does not use the managed private key file: ' . $config);
+        }
+        $verified[] = [
+            'name' => (string) $endpoint['name'],
+            'url' => (string) $endpoint['url'],
+            'port' => $port,
+            'config' => $config,
+        ];
+    }
+    return $verified;
+}
+
 function atomic_write(string $target, string $content, int $mode, string $group): void
 {
     $dir = dirname($target);
@@ -245,7 +291,8 @@ try {
     $chainInput = (string) ($payload['chain'] ?? '');
     $privateKeyInput = (string) ($payload['private_key'] ?? '');
     $passphrase = (string) ($payload['private_key_passphrase'] ?? '');
-    $reloadHttpd = !empty($payload['reload_httpd']);
+    $reloadHttpd = true;
+    $managedEndpoints = verify_managed_ssl_endpoints();
 
     foreach ([$certificateInput, $chainInput, $privateKeyInput] as $part) {
         if (strlen($part) > MAX_PEM_BYTES) {
@@ -321,6 +368,7 @@ try {
         'backup_stamp' => $stamp,
         'chain_count' => max(0, count($allBlocks) - 1),
         'apache_reload' => $reloadOutput,
+        'updated_endpoints' => $managedEndpoints,
     ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) . "\n";
 } catch (Throwable $e) {
     fail($e->getMessage());

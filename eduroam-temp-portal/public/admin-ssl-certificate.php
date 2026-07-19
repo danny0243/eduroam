@@ -10,6 +10,10 @@ const SSL_CERT_PATH = '/etc/pki/tls/certs/eduroam.ncut.edu.tw-fullchain.pem';
 const SSL_KEY_PATH = '/etc/pki/tls/private/eduroam.ncut.edu.tw.key';
 const SSL_DOMAIN = 'eduroam.ncut.edu.tw';
 const SSL_UPLOAD_MAX_BYTES = 1048576;
+const SSL_MANAGED_ENDPOINTS = [
+    ['name' => 'eduroam 申請系統', 'url' => 'https://eduroam.ncut.edu.tw/', 'port' => 443],
+    ['name' => 'daloRADIUS WebUI', 'url' => 'https://eduroam.ncut.edu.tw:8443/', 'port' => 8443],
+];
 
 function ssl_current_certificate_summary(): array
 {
@@ -173,8 +177,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'chain' => $chain,
             'private_key' => ssl_upload_contents('private_key_file', true),
             'private_key_passphrase' => (string) ($_POST['private_key_passphrase'] ?? ''),
-            'reload_httpd' => !empty($_POST['reload_httpd']),
+            'reload_httpd' => true,
         ]);
+        $endpointText = implode('、', array_map(
+            static fn(array $endpoint): string => (string) ($endpoint['url'] ?? ''),
+            is_array($result['updated_endpoints'] ?? null) ? $result['updated_endpoints'] : []
+        ));
         audit(
             $pdo,
             (int) $admin['id'],
@@ -182,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             null,
             'installed SSL certificate for ' . SSL_DOMAIN . ' fingerprint ' . ($result['fingerprint_sha256'] ?? '')
         );
-        flash('success', 'SSL 憑證已匯入並套用，效期至 ' . ($result['not_after'] ?? '-') . '。');
+        flash('success', 'SSL 憑證已匯入並同步套用至 443 / 8443，效期至 ' . ($result['not_after'] ?? '-') . ($endpointText !== '' ? '。更新服務：' . $endpointText : '。'));
     } catch (Throwable $e) {
         flash('error', $e->getMessage());
     }
@@ -197,7 +205,7 @@ render_header('SSL 憑證管理 - ' . APP_NAME, true);
 <section class="dashboard-head">
     <div>
         <h1>SSL 憑證管理</h1>
-        <p>匯入並套用 TWCA 核發給 <code><?= e(SSL_DOMAIN) ?></code> 的 Apache HTTPS 憑證。</p>
+        <p>匯入 TWCA 核發給 <code><?= e(SSL_DOMAIN) ?></code> 的 Apache HTTPS 憑證，成功後同步更新 443 與 8443。</p>
     </div>
     <div class="stats">
         <span><strong><?= e(SSL_DOMAIN) ?></strong> 網域</span>
@@ -242,6 +250,24 @@ render_header('SSL 憑證管理 - ' . APP_NAME, true);
 <section class="panel">
     <div class="section-title-row">
         <div>
+            <h2>同步更新範圍</h2>
+            <p class="muted small">下列 HTTPS 服務會使用同一組 <code>fullchain.pem</code> 與 private key；匯入成功後會 reload Apache 一次讓兩邊同時生效。</p>
+        </div>
+    </div>
+    <div class="ssl-summary-grid">
+        <?php foreach (SSL_MANAGED_ENDPOINTS as $endpoint): ?>
+            <div>
+                <span><?= e((string) $endpoint['name']) ?></span>
+                <strong><a href="<?= e((string) $endpoint['url']) ?>" target="_blank" rel="noopener"><?= e((string) $endpoint['url']) ?></a></strong>
+                <small class="muted">HTTPS Port <?= (int) $endpoint['port'] ?></small>
+            </div>
+        <?php endforeach; ?>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="section-title-row">
+        <div>
             <h2>匯入 TWCA 憑證</h2>
             <p class="muted small">Server Certificate 與 Private Key 必填；Intermediate CA / Chain 建議上傳 TWCA 提供的 <code>uca.cer</code>。</p>
         </div>
@@ -272,16 +298,12 @@ render_header('SSL 憑證管理 - ' . APP_NAME, true);
             <input type="password" name="private_key_passphrase" autocomplete="off" placeholder="若私鑰未加密可留空">
             <small class="muted">若有填寫，只用於本次匯入解密，不會保存。</small>
         </label>
-        <label class="inline-check wide">
-            <input type="checkbox" name="reload_httpd" value="1" checked>
-            <span>驗證通過後重新載入 Apache，讓 443 與 8443 立即使用新憑證</span>
-        </label>
         <div class="notice wide ssl-warning">
             <strong>安全檢查</strong>
-            <p>系統會檢查憑證效期、CN/SAN 是否符合 <code><?= e(SSL_DOMAIN) ?></code>、憑證與私鑰是否相符，並在安裝後執行 Apache configtest。若驗證失敗，會回復原憑證。</p>
+            <p>系統會檢查憑證效期、CN/SAN 是否符合 <code><?= e(SSL_DOMAIN) ?></code>、憑證與私鑰是否相符、443/8443 vhost 是否都指向受管理憑證檔，並在安裝後執行 Apache configtest 與 reload。若驗證失敗，會回復原憑證。</p>
         </div>
         <div class="actions wide">
-            <button type="submit" class="primary">匯入並套用 SSL 憑證</button>
+            <button type="submit" class="primary">匯入並同步套用 443 / 8443</button>
         </div>
     </form>
 </section>

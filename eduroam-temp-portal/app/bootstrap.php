@@ -2334,7 +2334,7 @@ function render_header(string $title, bool $isAdmin = false): void
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,500,0,0&display=swap">
-    <link rel="stylesheet" href="/assets/styles.css?v=20260718-ssl-manager">
+    <link rel="stylesheet" href="/assets/styles.css?v=20260719-ssl-manager-v2">
 </head>
 <body>
 <header class="topbar">
